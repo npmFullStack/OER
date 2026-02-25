@@ -1,0 +1,43 @@
+@import "@/font.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bgColor text-textPrimary tracking-wider;
+  }
+  input,
+  textarea {
+    @apply text-textPrimary bg-white border border-borderLight rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-cardBg rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-borderLight;
+  }
+
+  .btn-primary {
+    @apply bg-primary hover:bg-primaryDark text-white transition-colors duration-300;
+  }
+
+  .btn-secondary {
+    @apply bg-accent hover:bg-secondary text-primary hover:text-white transition-colors duration-300;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out;
+}
