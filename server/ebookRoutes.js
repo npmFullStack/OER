@@ -52,7 +52,49 @@ const upload = multer({
   },
 });
 
-// Upload ebook
+// Helper to build URL fields from DB row
+const withUrls = (ebook) => ({
+  ...ebook,
+  file_url: ebook.file_path
+    ? `/uploads/ebooks/${path.basename(ebook.file_path)}`
+    : null,
+  cover_url: ebook.cover_image_path
+    ? `/uploads/covers/${path.basename(ebook.cover_image_path)}`
+    : null,
+});
+
+// ─────────────────────────────────────────────
+// PUBLIC ROUTES
+// ─────────────────────────────────────────────
+
+// Get all ebooks (PUBLIC)
+router.get("/", async (req, res) => {
+  try {
+    const [ebooks] = await pool.query(
+      `SELECT e.*, 
+       CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
+       FROM ebooks e 
+       JOIN users u ON e.uploaded_by = u.id 
+       ORDER BY e.created_at DESC`,
+    );
+    res.json(
+      createResponse(
+        true,
+        "eBooks retrieved successfully",
+        ebooks.map(withUrls),
+      ),
+    );
+  } catch (error) {
+    console.error("Get ebooks error:", error);
+    res.status(500).json(createResponse(false, "Server error"));
+  }
+});
+
+// ─────────────────────────────────────────────
+// PROTECTED ROUTES  (must come before /:id)
+// ─────────────────────────────────────────────
+
+// Upload ebook (PROTECTED)
 router.post(
   "/upload",
   authenticateToken,
@@ -70,27 +112,21 @@ router.post(
       const { title, course, yearLevel } = req.body;
 
       if (!title || !course || !yearLevel) {
-        // Delete uploaded file if validation fails
-        if (fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         return res
           .status(400)
           .json(createResponse(false, "Please fill in all required fields"));
       }
 
-      // Extract cover image from PDF (optional - don't fail if it doesn't work)
+      // Extract cover image from PDF (non-critical)
       try {
         coverImagePath = await extractCoverFromPDF(req.file.path, coversDir);
-        if (coverImagePath) {
+        if (coverImagePath)
           console.log("Cover extracted successfully:", coverImagePath);
-        }
       } catch (coverError) {
         console.error("Cover extraction failed (non-critical):", coverError);
-        // Continue with upload even if cover extraction fails
       }
 
-      // Insert ebook into database
       const [result] = await pool.query(
         `INSERT INTO ebooks 
          (title, course, year_level, file_name, file_path, file_size, cover_image_path, uploaded_by) 
@@ -107,7 +143,6 @@ router.post(
         ],
       );
 
-      // Get the inserted ebook
       const [ebooks] = await pool.query(
         `SELECT e.*, 
          CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
@@ -117,104 +152,40 @@ router.post(
         [result.insertId],
       );
 
-      // Convert file path to URL for response
-      const ebookData = ebooks[0];
-      const responseData = {
-        ...ebookData,
-        file_url: `/uploads/ebooks/${path.basename(ebookData.file_path)}`,
-        cover_url: ebookData.cover_image_path
-          ? `/uploads/covers/${path.basename(ebookData.cover_image_path)}`
-          : null,
-      };
-
       res.status(201).json(
         createResponse(true, "eBook uploaded successfully", {
-          ebook: responseData,
+          ebook: withUrls(ebooks[0]),
         }),
       );
     } catch (error) {
       console.error("Upload error:", error);
-
-      // Delete uploaded file if database insertion fails
       if (req.file && fs.existsSync(req.file.path)) {
         try {
           fs.unlinkSync(req.file.path);
-        } catch (unlinkError) {
-          console.error("Error deleting file:", unlinkError);
-        }
+        } catch {}
       }
-
-      // Delete cover image if it was created but database insert failed
       if (coverImagePath && fs.existsSync(coverImagePath)) {
         try {
           fs.unlinkSync(coverImagePath);
-        } catch (unlinkError) {
-          console.error("Error deleting cover:", unlinkError);
-        }
+        } catch {}
       }
-
       res.status(500).json(createResponse(false, "Server error during upload"));
     }
   },
 );
 
-// Get all ebooks
-router.get("/", authenticateToken, async (req, res) => {
-  try {
-    const [ebooks] = await pool.query(
-      `SELECT e.*, 
-       CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
-       FROM ebooks e 
-       JOIN users u ON e.uploaded_by = u.id 
-       ORDER BY e.created_at DESC`,
-    );
-
-    // Add URLs for files and covers
-    const ebooksWithUrls = ebooks.map((ebook) => ({
-      ...ebook,
-      file_url: ebook.file_path
-        ? `/uploads/ebooks/${path.basename(ebook.file_path)}`
-        : null,
-      cover_url: ebook.cover_image_path
-        ? `/uploads/covers/${path.basename(ebook.cover_image_path)}`
-        : null,
-    }));
-
-    res.json(
-      createResponse(true, "eBooks retrieved successfully", ebooksWithUrls),
-    );
-  } catch (error) {
-    console.error("Get ebooks error:", error);
-    res.status(500).json(createResponse(false, "Server error"));
-  }
-});
-
-// Get user's ebooks
+// Get user's own ebooks (PROTECTED) — MUST be before /:id
 router.get("/my-ebooks", authenticateToken, async (req, res) => {
   try {
     const [ebooks] = await pool.query(
-      `SELECT * FROM ebooks 
-       WHERE uploaded_by = ? 
-       ORDER BY created_at DESC`,
+      `SELECT * FROM ebooks WHERE uploaded_by = ? ORDER BY created_at DESC`,
       [req.user.id],
     );
-
-    // Add URLs for files and covers
-    const ebooksWithUrls = ebooks.map((ebook) => ({
-      ...ebook,
-      file_url: ebook.file_path
-        ? `/uploads/ebooks/${path.basename(ebook.file_path)}`
-        : null,
-      cover_url: ebook.cover_image_path
-        ? `/uploads/covers/${path.basename(ebook.cover_image_path)}`
-        : null,
-    }));
-
     res.json(
       createResponse(
         true,
         "Your ebooks retrieved successfully",
-        ebooksWithUrls,
+        ebooks.map(withUrls),
       ),
     );
   } catch (error) {
@@ -223,8 +194,12 @@ router.get("/my-ebooks", authenticateToken, async (req, res) => {
   }
 });
 
-// Get single ebook
-router.get("/:id", authenticateToken, async (req, res) => {
+// ─────────────────────────────────────────────
+// PARAM ROUTES  (wildcards last)
+// ─────────────────────────────────────────────
+
+// Get single ebook (PUBLIC)
+router.get("/:id", async (req, res) => {
   try {
     const [ebooks] = await pool.query(
       `SELECT e.*, 
@@ -239,20 +214,8 @@ router.get("/:id", authenticateToken, async (req, res) => {
       return res.status(404).json(createResponse(false, "eBook not found"));
     }
 
-    const ebook = ebooks[0];
-    // Add URLs for files and covers
-    const ebookWithUrls = {
-      ...ebook,
-      file_url: ebook.file_path
-        ? `/uploads/ebooks/${path.basename(ebook.file_path)}`
-        : null,
-      cover_url: ebook.cover_image_path
-        ? `/uploads/covers/${path.basename(ebook.cover_image_path)}`
-        : null,
-    };
-
     res.json(
-      createResponse(true, "eBook retrieved successfully", ebookWithUrls),
+      createResponse(true, "eBook retrieved successfully", withUrls(ebooks[0])),
     );
   } catch (error) {
     console.error("Get ebook error:", error);
@@ -260,8 +223,8 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Download ebook (increment download count)
-router.get("/:id/download", authenticateToken, async (req, res) => {
+// Download ebook — increment download count (PUBLIC)
+router.get("/:id/download", async (req, res) => {
   try {
     const [ebooks] = await pool.query("SELECT * FROM ebooks WHERE id = ?", [
       req.params.id,
@@ -273,18 +236,14 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
 
     const ebook = ebooks[0];
 
-    // Check if file exists
     if (!fs.existsSync(ebook.file_path)) {
       return res.status(404).json(createResponse(false, "File not found"));
     }
 
-    // Increment download count
     await pool.query(
       "UPDATE ebooks SET downloads = downloads + 1 WHERE id = ?",
       [req.params.id],
     );
-
-    // Send file
     res.download(ebook.file_path, ebook.file_name);
   } catch (error) {
     console.error("Download error:", error);
@@ -292,7 +251,7 @@ router.get("/:id/download", authenticateToken, async (req, res) => {
   }
 });
 
-// Delete ebook
+// Delete ebook (PROTECTED)
 router.delete("/:id", authenticateToken, async (req, res) => {
   try {
     const [ebooks] = await pool.query(
@@ -308,67 +267,16 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     const ebook = ebooks[0];
 
-    // Delete file from filesystem
-    if (fs.existsSync(ebook.file_path)) {
-      fs.unlinkSync(ebook.file_path);
-    }
-
-    // Delete cover image if exists
+    if (fs.existsSync(ebook.file_path)) fs.unlinkSync(ebook.file_path);
     if (ebook.cover_image_path && fs.existsSync(ebook.cover_image_path)) {
       fs.unlinkSync(ebook.cover_image_path);
     }
 
-    // Delete from database
     await pool.query("DELETE FROM ebooks WHERE id = ?", [req.params.id]);
-
     res.json(createResponse(true, "eBook deleted successfully"));
   } catch (error) {
     console.error("Delete error:", error);
     res.status(500).json(createResponse(false, "Server error"));
-  }
-});
-
-// Alternative cover extraction endpoint (optional)
-router.post("/extract-cover/:id", authenticateToken, async (req, res) => {
-  try {
-    const [ebooks] = await pool.query(
-      "SELECT * FROM ebooks WHERE id = ? AND uploaded_by = ?",
-      [req.params.id, req.user.id],
-    );
-
-    if (ebooks.length === 0) {
-      return res
-        .status(404)
-        .json(createResponse(false, "eBook not found or unauthorized"));
-    }
-
-    const ebook = ebooks[0];
-
-    // Extract cover from existing PDF
-    coverImagePath = await extractCoverFromPDF(req.file.path, coversDir, title);
-
-    if (!coverImagePath) {
-      return res
-        .status(500)
-        .json(createResponse(false, "Failed to extract cover"));
-    }
-
-    // Update database with cover path
-    await pool.query("UPDATE ebooks SET cover_image_path = ? WHERE id = ?", [
-      coverImagePath,
-      req.params.id,
-    ]);
-
-    res.json(
-      createResponse(true, "Cover extracted successfully", {
-        cover_url: `/uploads/covers/${path.basename(coverImagePath)}`,
-      }),
-    );
-  } catch (error) {
-    console.error("Cover extraction error:", error);
-    res
-      .status(500)
-      .json(createResponse(false, "Server error during cover extraction"));
   }
 });
 

@@ -43,6 +43,62 @@ const getCourseBadgeColor = (courseCode) => {
   }
 };
 
+// Separate component so each card has its own imgError state
+const FeaturedBookCard = ({ book, onClick }) => {
+  const [imgError, setImgError] = React.useState(false);
+  // cover_url is already absolute (normalized by ebookService)
+  const showCover = book.cover_url && !imgError;
+
+  return (
+    <div
+      onClick={onClick}
+      className="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 cursor-pointer flex-shrink-0"
+      style={{ width: "200px" }}
+    >
+      {/* Cover image area */}
+      <div
+        className="relative w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200"
+        style={{ height: "280px" }}
+      >
+        {showCover ? (
+          <img
+            src={book.cover_url}
+            alt={book.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+            <BookOpen className="w-12 h-12 text-slate-300" />
+            <p className="text-xs text-slate-400 text-center line-clamp-4 font-medium leading-tight">
+              {book.title}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="p-3">
+        <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm leading-snug mb-2 group-hover:text-blue-700 transition-colors">
+          {book.title}
+        </h3>
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <span
+            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
+          >
+            {book.course}
+          </span>
+          <div className="flex items-center gap-1 text-xs text-gray-500">
+            <Download className="w-3 h-3 text-blue-500" />
+            <span className="text-xs font-medium">
+              {formatDownloads(book.downloads)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,6 +115,7 @@ const Home = () => {
     const fetchFeatured = async () => {
       try {
         const data = await ebookService.getEbooks();
+        // ebookService.getEbooks() now returns { ...raw, data: normalizedBooks }
         const books = Array.isArray(data) ? data : data.data || [];
         const top3 = [...books]
           .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
@@ -121,24 +178,7 @@ const Home = () => {
     { value: "4", label: "4th Year" },
   ];
 
-  // Function to get badge color based on course
-  const getCourseBadgeColor = (courseCode) => {
-    switch (courseCode) {
-      case "BSED":
-        return "bg-blue-100 text-blue-600";
-      case "BEED":
-        return "bg-blue-100 text-blue-600";
-      case "BSBA-FM":
-      case "BSBA-MM":
-        return "bg-yellow-100 text-yellow-600";
-      case "BSIT":
-        return "bg-red-100 text-red-600";
-      default:
-        return "bg-blue-50 text-primary";
-    }
-  };
-
-  // Categories with icons - Updated to "Browse by Course"
+  // Browse by Course
   const browseCourses = [
     {
       name: "BS Information Technology",
@@ -250,7 +290,7 @@ const Home = () => {
                 </button>
               </div>
 
-              {/* Filter Dropdown - Compact Single Row Design */}
+              {/* Filter Dropdown */}
               {showFilters && (
                 <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
                   <div className="p-3">
@@ -374,7 +414,7 @@ const Home = () => {
                       </button>
                     </div>
 
-                    {/* Active Filters Display - Moved below the row */}
+                    {/* Active Filters Display */}
                     {(selectedCourse || selectedYear) && (
                       <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100">
                         {selectedCourse && (
@@ -437,16 +477,17 @@ const Home = () => {
           </div>
 
           {loadingFeatured ? (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="flex gap-6 justify-center">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse"
+                  className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse flex-shrink-0"
+                  style={{ width: "200px" }}
                 >
-                  <div className="aspect-[3/4] bg-gray-200" />
-                  <div className="p-4 space-y-2">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  <div className="bg-gray-200" style={{ height: "280px" }} />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-3/4" />
+                    <div className="h-2 bg-gray-100 rounded w-1/2" />
                   </div>
                 </div>
               ))}
@@ -457,82 +498,21 @@ const Home = () => {
               <p className="text-sm">No books uploaded yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {featuredBooks.map((book, idx) => {
-                const API_URL =
-                  import.meta.env.VITE_API_URL?.replace("/api", "") ||
-                  "http://localhost:5000";
-                const coverSrc = book.cover_url
-                  ? `${API_URL}${book.cover_url}`
-                  : null;
-                const medals = ["🥇", "🥈", "🥉"];
-                return (
-                  <div
-                    key={book.id}
-                    onClick={() => navigate(`/ebook/${book.id}`)}
-                    className="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 cursor-pointer"
-                  >
-                    <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
-                      {coverSrc ? (
-                        <img
-                          src={coverSrc}
-                          alt={book.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-4">
-                          <BookOpen className="w-16 h-16 text-slate-300" />
-                          <p className="text-xs text-slate-400 text-center line-clamp-3 font-medium">
-                            {book.title}
-                          </p>
-                        </div>
-                      )}
-                      {/* Rank badge */}
-                      <div className="absolute top-2 right-2 text-2xl drop-shadow-md">
-                        {medals[idx]}
-                      </div>
-                      {book.year_level && (
-                        <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm">
-                          Year {book.year_level}
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm leading-snug mb-1 group-hover:text-blue-700 transition-colors">
-                        {book.title}
-                      </h3>
-                      {book.uploader_name && (
-                        <p className="text-xs text-gray-500 mb-3 truncate">
-                          by {book.uploader_name}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
-                        >
-                          {book.course}
-                        </span>
-                        <div className="flex items-center gap-1 text-xs text-gray-600 font-medium">
-                          <Download className="w-3.5 h-3.5 text-blue-500" />
-                          <span>
-                            {formatDownloads(book.downloads)} downloads
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            // Centered flex row
+            <div className="flex flex-wrap gap-6 justify-center">
+              {featuredBooks.map((book) => (
+                <FeaturedBookCard
+                  key={book.id}
+                  book={book}
+                  onClick={() => navigate(`/ebook/${book.id}`)}
+                />
+              ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* Browse by Course Section - Updated */}
+      {/* Browse by Course Section */}
       <section className="py-16 bg-white border-y border-gray-200">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8">
@@ -547,36 +527,25 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {browseCourses.map((course, index) => {
               const Icon = course.icon;
-              const colorClasses = {
-                green: "hover:bg-green-600",
-                yellow: "hover:bg-yellow-600",
-                blue: "hover:bg-blue-600",
-                red: "hover:bg-red-600",
-                purple: "hover:bg-purple-600",
-              };
 
               return (
                 <Link
                   key={index}
                   to={`/course/${course.code.toLowerCase()}`}
-                  className={`bg-gray-50 hover:bg-primary group p-5 rounded-lg text-left transition-all duration-300 flex items-center gap-4`}
+                  className="bg-gray-50 hover:bg-primary group p-4 rounded-lg text-left transition-all duration-300 flex items-center gap-4"
                 >
-                  <div
-                    className={`p-3 rounded-lg bg-white/80 group-hover:bg-white/20 transition-colors`}
-                  >
-                    <Icon
-                      className={`w-6 h-6 text-primary group-hover:text-white transition-colors`}
-                    />
+                  <div className="p-2 rounded-lg bg-white/80 group-hover:bg-white/20 transition-colors">
+                    <Icon className="w-5 h-5 text-primary group-hover:text-white transition-colors" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 group-hover:text-white transition-colors">
+                    <h3 className="font-medium text-gray-900 group-hover:text-white transition-colors text-sm">
                       {course.name}
                     </h3>
-                    <p className="text-sm text-gray-600 group-hover:text-white/90 transition-colors">
+                    <p className="text-xs text-gray-600 group-hover:text-white/90 transition-colors">
                       {course.count} books available
                     </p>
                   </div>
-                  <ArrowRight className="w-5 h-5 ml-auto text-gray-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="w-4 h-4 ml-auto text-gray-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
                 </Link>
               );
             })}
@@ -584,21 +553,21 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section - Optional, you can keep or remove */}
+      {/* Stats Section */}
       <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {stats.map((stat, index) => {
               const Icon = stat.icon;
               return (
                 <div key={index} className="text-center">
-                  <div className="inline-flex p-3 bg-primary/10 rounded-full mb-3">
-                    <Icon className="w-6 h-6 text-primary" />
+                  <div className="inline-flex p-2 bg-primary/10 rounded-full mb-2">
+                    <Icon className="w-5 h-5 text-primary" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900">
+                  <h3 className="text-xl font-bold text-gray-900">
                     {stat.value}
                   </h3>
-                  <p className="text-sm text-gray-600">{stat.label}</p>
+                  <p className="text-xs text-gray-600">{stat.label}</p>
                 </div>
               );
             })}
@@ -607,24 +576,24 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-primary">
+      <section className="py-12 bg-primary">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-2">
+          <h2 className="text-2xl font-bold text-white mb-2">
             Start Your Learning Journey
           </h2>
-          <p className="text-white/90 mb-6 max-w-xl mx-auto">
+          <p className="text-white/90 mb-4 max-w-xl mx-auto text-sm">
             Access course-specific materials and enhance your studies
           </p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-3 justify-center">
             <Link
               to="/browse"
-              className="bg-white text-primary px-6 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+              className="bg-white text-primary px-5 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors text-sm"
             >
               Browse Library
             </Link>
             <Link
               to="/about"
-              className="border-2 border-white text-white px-6 py-3 rounded-lg font-medium hover:bg-white/10 transition-colors"
+              className="border-2 border-white text-white px-5 py-2 rounded-lg font-medium hover:bg-white/10 transition-colors text-sm"
             >
               Learn More
             </Link>

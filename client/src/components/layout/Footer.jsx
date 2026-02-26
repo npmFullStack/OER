@@ -40,7 +40,7 @@ const Footer = () => {
               </span>
             </Link>
             <p className="text-sm text-gray-400 font-normal leading-relaxed max-w-xs">
-              OPOL Community College Digital Library
+              Opol Community College Digital Library
             </p>
           </div>
 
@@ -103,7 +103,8 @@ const Footer = () => {
       <div className="border-t border-gray-800/50 bg-[#0A1A2F]">
         <div className="container mx-auto px-4 py-5">
           <p className="text-xs text-gray-500 font-medium text-center">
-            © {currentYear} OPOL Community College. All rights reserved.
+            © {currentYear} Developed by Norway Mangorangca. All rights
+            reserved.
           </p>
         </div>
       </div>

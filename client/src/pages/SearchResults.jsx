@@ -40,13 +40,7 @@ const formatDownloads = (n) => {
   return String(n);
 };
 
-const formatFileSize = (bytes) => {
-  if (!bytes) return "";
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-// ── courses & years (same as Home) ───────────────────────────────────────────
+// ── courses & years ───────────────────────────────────────────────────────────
 const COURSES = [
   { value: "BSIT", label: "BS Information Technology" },
   { value: "BSBA-FM", label: "BSBA Financial Management" },
@@ -78,7 +72,7 @@ const BookCard = ({ book, onClick }) => {
   return (
     <div
       onClick={() => onClick(book.id)}
-      className="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col"
+      className="group bg-white rounded-lg overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col"
     >
       {/* Cover */}
       <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 flex-shrink-0">
@@ -89,47 +83,38 @@ const BookCard = ({ book, onClick }) => {
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             onError={(e) => {
               e.target.onerror = null;
+              e.target.style.display = "none";
               e.target.parentNode.classList.add("no-cover");
-              e.target.remove();
             }}
           />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-4">
-            <BookOpen className="w-12 h-12 text-slate-300" />
-            <p className="text-xs text-slate-400 text-center line-clamp-3 font-medium">
-              {book.title}
-            </p>
-          </div>
-        )}
+        ) : null}
 
-        {/* Year badge */}
-        {book.year_level && (
-          <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm">
-            Year {book.year_level}
-          </div>
-        )}
+        {/* Fallback when no cover */}
+        <div
+          className={`absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 ${coverSrc ? "hidden" : "flex"}`}
+        >
+          <BookOpen className="w-10 h-10 text-slate-300" />
+          <p className="text-xs text-slate-400 text-center line-clamp-3 font-medium">
+            {book.title}
+          </p>
+        </div>
       </div>
 
       {/* Info */}
-      <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm leading-snug mb-1 group-hover:text-blue-700 transition-colors">
+      <div className="p-3 flex flex-col flex-1">
+        <h3 className="font-medium text-gray-900 line-clamp-2 text-sm leading-snug mb-1 group-hover:text-blue-700 transition-colors">
           {book.title}
         </h3>
-        {book.uploader_name && (
-          <p className="text-xs text-gray-500 mb-3 truncate">
-            by {book.uploader_name}
-          </p>
-        )}
 
-        <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100">
+        <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
           <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
+            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
           >
             {book.course}
           </span>
           <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Download className="w-3.5 h-3.5" />
-            <span>{formatDownloads(book.downloads)}</span>
+            <Download className="w-3 h-3" />
+            <span className="text-xs">{formatDownloads(book.downloads)}</span>
           </div>
         </div>
       </div>
@@ -148,7 +133,7 @@ const SearchResults = () => {
   const yearParam = searchParams.get("year") || "";
   const sortParam = searchParams.get("sort") || "popular";
 
-  // Local search bar state (synced on mount / param change)
+  // Local search bar state
   const [inputValue, setInputValue] = useState(queryParam);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(courseParam);
@@ -160,7 +145,7 @@ const SearchResults = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Sync local state when URL changes (e.g. browser back/forward)
+  // Sync local state when URL changes
   useEffect(() => {
     setInputValue(queryParam);
     setSelectedCourse(courseParam);
@@ -228,7 +213,7 @@ const SearchResults = () => {
     return filtered;
   }, [allEbooks, queryParam, courseParam, yearParam, sortParam]);
 
-  // Update URL (triggers re-render / re-filter)
+  // Update URL
   const applySearch = useCallback(() => {
     const params = {};
     if (inputValue.trim()) params.q = inputValue.trim();
@@ -263,7 +248,7 @@ const SearchResults = () => {
       <Header />
       <ScrollToTopButton showAfter={300} />
 
-      {/* ── Search Bar Strip ── */}
+      {/* Search Bar Strip */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <form onSubmit={handleSearchSubmit} className="relative">
@@ -310,7 +295,7 @@ const SearchResults = () => {
               </button>
             </div>
 
-            {/* Filter dropdown */}
+            {/* Filter dropdown - same as before */}
             {showFilters && (
               <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-40 p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -466,18 +451,18 @@ const SearchResults = () => {
         </div>
       </div>
 
-      {/* ── Results Area ── */}
-      <main className="container mx-auto px-4 py-8">
+      {/* Results Area */}
+      <main className="container mx-auto px-4 py-6">
         {/* Back + heading */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => navigate(-1)}
-            className="p-2 rounded-full hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors focus:outline-none"
+            className="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors focus:outline-none"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
+            <h1 className="text-lg font-bold text-gray-900">
               {queryParam
                 ? `Results for "${queryParam}"`
                 : hasActiveFilters
@@ -485,7 +470,7 @@ const SearchResults = () => {
                   : "All eBooks"}
             </h1>
             {!loading && (
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-xs text-gray-500 mt-0.5">
                 {results.length} {results.length === 1 ? "book" : "books"} found
               </p>
             )}
@@ -494,16 +479,16 @@ const SearchResults = () => {
 
         {/* Loading */}
         {loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {Array.from({ length: 10 }).map((_, i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse"
+                className="bg-white rounded-lg border border-gray-100 overflow-hidden animate-pulse"
               >
                 <div className="aspect-[3/4] bg-gray-200" />
-                <div className="p-4 space-y-2">
-                  <div className="h-3 bg-gray-200 rounded w-4/5" />
-                  <div className="h-3 bg-gray-100 rounded w-3/5" />
+                <div className="p-3 space-y-2">
+                  <div className="h-2 bg-gray-200 rounded w-4/5" />
+                  <div className="h-2 bg-gray-100 rounded w-3/5" />
                 </div>
               </div>
             ))}
@@ -512,11 +497,11 @@ const SearchResults = () => {
 
         {/* Error */}
         {!loading && error && (
-          <div className="text-center py-16">
+          <div className="text-center py-12">
             <p className="text-red-500 text-sm">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-3 text-sm text-blue-600 underline"
+              className="mt-2 text-xs text-blue-600 underline"
             >
               Retry
             </button>
@@ -525,21 +510,21 @@ const SearchResults = () => {
 
         {/* No results */}
         {!loading && !error && results.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
             <img
               src={noSearchFound}
               alt="No results found"
-              className="w-64 h-auto opacity-90"
+              className="w-48 h-auto opacity-90"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = "none";
               }}
             />
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-700 mb-1">
+              <h3 className="text-base font-semibold text-gray-700 mb-1">
                 No eBooks Found
               </h3>
-              <p className="text-sm text-gray-500 max-w-xs">
+              <p className="text-xs text-gray-500 max-w-xs">
                 {queryParam
                   ? `We couldn't find any books matching "${queryParam}". Try different keywords or clear the filters.`
                   : "No books match the current filters. Try adjusting your search."}
@@ -550,9 +535,9 @@ const SearchResults = () => {
                   clearFilters();
                   setSearchParams({}, { replace: true });
                 }}
-                className="mt-4 inline-flex items-center gap-2 text-sm bg-blue-700 text-white px-4 py-2 rounded-lg hover:bg-blue-800 transition-colors"
+                className="mt-3 inline-flex items-center gap-1.5 text-xs bg-blue-700 text-white px-3 py-1.5 rounded-lg hover:bg-blue-800 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
                 Clear Search
               </button>
             </div>
@@ -561,7 +546,7 @@ const SearchResults = () => {
 
         {/* Results grid */}
         {!loading && !error && results.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {results.map((book) => (
               <BookCard
                 key={book.id}
