@@ -1,39 +1,87 @@
 // pages/Home.jsx
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Search,
   BookOpen,
   Users,
   BookMarked,
   ArrowRight,
-  Star,
   Download,
   X,
   Filter,
-  Clock,
   Award,
   Sparkles,
-  Heart,
   GraduationCap,
   BookText,
+  TrendingUp,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import heroBg from "@/assets/images/heroBg.png";
+import { ebookService } from "@/services/ebookService";
+
+const formatDownloads = (n) => {
+  if (!n && n !== 0) return "0";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(n);
+};
+
+const getCourseBadgeColor = (courseCode) => {
+  switch ((courseCode || "").toUpperCase()) {
+    case "BSED":
+    case "BEED":
+      return "bg-blue-100 text-blue-700";
+    case "BSBA-FM":
+    case "BSBA-MM":
+      return "bg-yellow-100 text-yellow-700";
+    case "BSIT":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-indigo-50 text-indigo-700";
+  }
+};
 
 const Home = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedSort, setSelectedSort] = useState("popular");
 
+  // Real featured books (top 3 by downloads)
+  const [featuredBooks, setFeaturedBooks] = useState([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const data = await ebookService.getEbooks();
+        const books = Array.isArray(data) ? data : data.data || [];
+        const top3 = [...books]
+          .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+          .slice(0, 3);
+        setFeaturedBooks(top3);
+      } catch (err) {
+        console.error("Failed to load featured books:", err);
+        setFeaturedBooks([]);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
+    fetchFeatured();
+  }, []);
+
   const handleSearch = (e) => {
     e.preventDefault();
-    // Handle search
-    console.log("Searching for:", searchQuery);
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (selectedCourse) params.set("course", selectedCourse);
+    if (selectedYear) params.set("year", selectedYear);
+    if (selectedSort) params.set("sort", selectedSort);
+    navigate(`/search?${params.toString()}`);
   };
 
   const clearFilters = () => {
@@ -89,54 +137,6 @@ const Home = () => {
         return "bg-blue-50 text-primary";
     }
   };
-
-  // Sample featured books
-  const featuredBooks = [
-    {
-      id: 1,
-      title: "Introduction to Computing",
-      author: "Michael Smith",
-      cover:
-        "https://images.unsplash.com/photo-1544947950-fa07a98d237f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-      rating: 4.5,
-      downloads: "1.2k",
-      category: "IT",
-      course: "BSIT",
-    },
-    {
-      id: 2,
-      title: "Financial Management Principles",
-      author: "Sarah Johnson",
-      cover:
-        "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-      rating: 4.8,
-      downloads: "2.3k",
-      category: "Business",
-      course: "BSBA-FM",
-    },
-    {
-      id: 3,
-      title: "Teaching Strategies in Elementary Education",
-      author: "Maria Garcia",
-      cover:
-        "https://images.unsplash.com/photo-1474932430478-367dbb6832c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-      rating: 4.7,
-      downloads: "1.8k",
-      category: "Education",
-      course: "BEED",
-    },
-    {
-      id: 4,
-      title: "Secondary Education Methods",
-      author: "David Wilson",
-      cover:
-        "https://images.unsplash.com/photo-1512820790803-83ca734da794?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-      rating: 4.6,
-      downloads: "1.5k",
-      category: "Education",
-      course: "BSED",
-    },
-  ];
 
   // Categories with icons - Updated to "Browse by Course"
   const browseCourses = [
@@ -415,76 +415,120 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Books Section */}
+      {/* Featured Books Section - Top 3 Most Downloaded */}
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                Recommended for You
+              <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+                <TrendingUp className="w-6 h-6 text-blue-600" />
+                Most Downloaded
               </h2>
-              <p className="text-sm text-gray-600">Popular eBooks this week</p>
+              <p className="text-sm text-gray-600">
+                Top 3 most downloaded eBooks in the library
+              </p>
             </div>
             <Link
-              to="/browse"
+              to="/search?sort=popular"
               className="text-primary hover:text-primaryDark flex items-center gap-1 text-sm font-medium transition-colors"
             >
               View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredBooks.map((book) => (
-              <div
-                key={book.id}
-                className="bg-white rounded-lg overflow-hidden border border-gray-200 hover:shadow-lg transition-all duration-300"
-              >
-                <div className="aspect-[3/4] overflow-hidden">
-                  <img
-                    src={book.cover}
-                    alt={book.title}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src =
-                        "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80";
-                    }}
-                  />
+          {loadingFeatured ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse"
+                >
+                  <div className="aspect-[3/4] bg-gray-200" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
                 </div>
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 line-clamp-1">
+              ))}
+            </div>
+          ) : featuredBooks.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No books uploaded yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {featuredBooks.map((book, idx) => {
+                const API_URL =
+                  import.meta.env.VITE_API_URL?.replace("/api", "") ||
+                  "http://localhost:5000";
+                const coverSrc = book.cover_url
+                  ? `${API_URL}${book.cover_url}`
+                  : null;
+                const medals = ["🥇", "🥈", "🥉"];
+                return (
+                  <div
+                    key={book.id}
+                    onClick={() => navigate(`/ebook/${book.id}`)}
+                    className="group bg-white rounded-xl overflow-hidden border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 cursor-pointer"
+                  >
+                    <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+                      {coverSrc ? (
+                        <img
+                          src={coverSrc}
+                          alt={book.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-3 p-4">
+                          <BookOpen className="w-16 h-16 text-slate-300" />
+                          <p className="text-xs text-slate-400 text-center line-clamp-3 font-medium">
+                            {book.title}
+                          </p>
+                        </div>
+                      )}
+                      {/* Rank badge */}
+                      <div className="absolute top-2 right-2 text-2xl drop-shadow-md">
+                        {medals[idx]}
+                      </div>
+                      {book.year_level && (
+                        <div className="absolute top-2 left-2 bg-black/60 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full backdrop-blur-sm">
+                          Year {book.year_level}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-gray-900 line-clamp-2 text-sm leading-snug mb-1 group-hover:text-blue-700 transition-colors">
                         {book.title}
                       </h3>
-                      <p className="text-sm text-gray-600">{book.author}</p>
+                      {book.uploader_name && (
+                        <p className="text-xs text-gray-500 mb-3 truncate">
+                          by {book.uploader_name}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
+                        >
+                          {book.course}
+                        </span>
+                        <div className="flex items-center gap-1 text-xs text-gray-600 font-medium">
+                          <Download className="w-3.5 h-3.5 text-blue-500" />
+                          <span>
+                            {formatDownloads(book.downloads)} downloads
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <button className="text-gray-400 hover:text-red-500 transition-colors">
-                      <Heart className="w-4 h-4" />
-                    </button>
                   </div>
-
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm text-gray-700">
-                        {book.rating}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Download className="w-4 h-4" />
-                      <span>{book.downloads}</span>
-                    </div>
-                    <span
-                      className={`text-xs font-bold px-2 py-1 rounded-full ${getCourseBadgeColor(book.course)}`}
-                    >
-                      {book.course}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 

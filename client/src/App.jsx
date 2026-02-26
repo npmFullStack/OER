@@ -7,6 +7,8 @@ import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import UploadEbook from "@/pages/UploadEbook";
 import Ebooks from "@/pages/Ebooks";
+import SearchResults from "@/pages/SearchResults";
+import EbookDetails from "@/pages/EbookDetails";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 
 const App = () => {
@@ -41,6 +43,8 @@ const App = () => {
           {/* Public routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/search" element={<SearchResults />} />
+          <Route path="/ebook/:id" element={<EbookDetails />} />
 
           {/* Protected routes */}
           <Route element={<ProtectedLayout />}>

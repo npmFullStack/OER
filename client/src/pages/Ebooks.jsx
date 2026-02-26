@@ -14,9 +14,8 @@ import {
   ChevronRight,
   FileText,
   Clock,
-  User,
-  X,
   AlertCircle,
+  Upload,
 } from "lucide-react";
 import { ebookService } from "@/services/ebookService";
 import { useAuth } from "@/context/AuthContext";
@@ -113,19 +112,30 @@ const Ebooks = () => {
     setSelectedYear("");
   };
 
+  const truncateFileName = (name, maxLength = 25) => {
+    if (!name) return "";
+    if (name.length <= maxLength) return name;
+    const extension = name.split(".").pop();
+    const nameWithoutExt = name.substring(0, name.lastIndexOf("."));
+    const truncatedName = nameWithoutExt.substring(
+      0,
+      maxLength - 3 - extension.length,
+    );
+    return `${truncatedName}...${extension}`;
+  };
+
   const handleDownload = async (ebook) => {
     try {
       const loadingToast = toast.loading("Preparing download...");
-
-      // For now, just show a message since we need to implement the download endpoint
-      toast.dismiss(loadingToast);
-      toast.success("Download started");
 
       // You can implement actual download here
       window.open(
         `http://localhost:5000/api/ebooks/${ebook.id}/download`,
         "_blank",
       );
+
+      toast.dismiss(loadingToast);
+      toast.success("Download started");
     } catch (error) {
       toast.error("Download failed");
       console.error("Download error:", error);
@@ -201,7 +211,7 @@ const Ebooks = () => {
   };
 
   return (
-    <div>
+    <div className="bg-white rounded-xl p-6">
       {/* Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -214,7 +224,7 @@ const Ebooks = () => {
           onClick={() => navigate("/upload")}
           className="mt-4 sm:mt-0 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
         >
-          <BookOpen className="w-5 h-5" />
+          <Upload className="w-5 h-5" />
           Upload New eBook
         </button>
       </div>
@@ -230,7 +240,7 @@ const Ebooks = () => {
               placeholder="Search by title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             />
           </div>
 
@@ -240,7 +250,7 @@ const Ebooks = () => {
             <select
               value={selectedCourse}
               onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
             >
               <option value="">All Courses</option>
               {courses.map((course) => (
@@ -257,7 +267,7 @@ const Ebooks = () => {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 appearance-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
             >
               <option value="">All Years</option>
               {yearLevels.map((year) => (
@@ -271,7 +281,7 @@ const Ebooks = () => {
           {/* Clear filters */}
           <button
             onClick={clearFilters}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"
+            className="px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"
           >
             <Filter className="w-5 h-5" />
             Clear Filters
@@ -348,16 +358,22 @@ const Ebooks = () => {
                   {currentItems.map((ebook) => (
                     <tr key={ebook.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-600/10 rounded">
+                        <div className="flex items-center gap-3 max-w-xs">
+                          <div className="p-2 bg-blue-600/10 rounded flex-shrink-0">
                             <FileText className="w-5 h-5 text-blue-600" />
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="font-medium text-gray-900 truncate"
+                              title={ebook.title}
+                            >
                               {ebook.title}
                             </p>
-                            <p className="text-sm text-gray-500">
-                              {ebook.file_name}
+                            <p
+                              className="text-sm text-gray-500 truncate"
+                              title={ebook.file_name}
+                            >
+                              {truncateFileName(ebook.file_name)}
                             </p>
                           </div>
                         </div>
@@ -429,7 +445,7 @@ const Ebooks = () => {
                 <button
                   onClick={() => paginate(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
@@ -441,7 +457,7 @@ const Ebooks = () => {
                       className={`px-4 py-2 border rounded-lg transition-colors ${
                         currentPage === number
                           ? "bg-blue-600 text-white border-blue-600"
-                          : "border-gray-300 hover:bg-gray-50"
+                          : "border-gray-200 hover:bg-gray-50"
                       }`}
                     >
                       {number}
@@ -451,7 +467,7 @@ const Ebooks = () => {
                 <button
                   onClick={() => paginate(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-5 h-5" />
                 </button>
@@ -483,7 +499,7 @@ const Ebooks = () => {
               <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={deleteLoading}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

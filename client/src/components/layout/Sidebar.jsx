@@ -33,7 +33,7 @@ const Sidebar = ({ isOpen }) => {
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-all duration-300 z-40 flex flex-col ${
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] *:transition-all duration-300 z-40 flex flex-col ${
         isOpen ? "w-64" : "w-20"
       }`}
     >
