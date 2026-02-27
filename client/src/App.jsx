@@ -12,6 +12,8 @@ import EbookDetails from "@/pages/EbookDetails";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
 import Programs from "@/pages/Programs";
 import AddProgram from "@/pages/AddProgram";
+import AllEbooks from "@/pages/AllEbooks";
+import EbooksByProgram from "@/pages/EbooksByProgram";
 
 const App = () => {
   return (
@@ -47,6 +49,11 @@ const App = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/search" element={<SearchResults />} />
           <Route path="/ebook/:id" element={<EbookDetails />} />
+          <Route path="/browse" element={<AllEbooks />} />
+          <Route
+            path="/program/:programId/ebooks"
+            element={<EbooksByProgram />}
+          />
 
           {/* Protected routes */}
           <Route element={<ProtectedLayout />}>

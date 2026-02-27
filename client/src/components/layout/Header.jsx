@@ -7,7 +7,8 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
-  const isHomePage = location.pathname === "/" || "/login";
+  const isHomePage =
+    location.pathname === "/" || location.pathname === "/login";
 
   const navLinks = [
     { name: "Home", path: "/", icon: Home },

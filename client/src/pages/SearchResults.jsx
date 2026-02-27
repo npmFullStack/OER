@@ -1,6 +1,6 @@
 // src/pages/SearchResults.jsx
-import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Search,
   Download,
@@ -12,12 +12,23 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { ebookService } from "@/services/ebookService";
-import Header from "@/components/layout/Header";
-import Footer from "@/components/layout/Footer";
-import ScrollToTopButton from "@/components/ScrollToTopButton";
 import noSearchFound from "@/assets/images/noSearchFound.png";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
+const getCoverUrl = (book) => {
+  if (!book.cover_url) return null;
+
+  // If it's already a full URL, use it
+  if (book.cover_url.startsWith("http")) {
+    return book.cover_url;
+  }
+
+  // Otherwise, construct from base URL
+  const baseUrl =
+    import.meta.env.VITE_API_URL?.replace("/api", "") ||
+    "http://localhost:5000";
+  return `${baseUrl}${book.cover_url}`;
+};
 
 const getCourseBadgeColor = (courseCode) => {
   switch ((courseCode || "").toUpperCase()) {
@@ -64,10 +75,14 @@ const SORT_OPTIONS = [
 
 // ── Book Card ─────────────────────────────────────────────────────────────────
 const BookCard = ({ book, onClick }) => {
-  const API_URL =
-    import.meta.env.VITE_API_URL?.replace("/api", "") ||
-    "http://localhost:5000";
-  const coverSrc = book.cover_url ? `${API_URL}${book.cover_url}` : null;
+  const [imgError, setImgError] = useState(false);
+  const [imgLoading, setImgLoading] = useState(true);
+
+  const coverSrc = getCoverUrl(book);
+  const showCover = coverSrc && !imgError;
+
+  // Use program color from database or default to blue
+  const programColor = book.program_color || "#3b82f6";
 
   return (
     <div
@@ -76,27 +91,40 @@ const BookCard = ({ book, onClick }) => {
     >
       {/* Cover */}
       <div className="relative aspect-[3/4] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 flex-shrink-0">
-        {coverSrc ? (
+        {imgLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+
+        {showCover ? (
           <img
             src={coverSrc}
             alt={book.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.style.display = "none";
-              e.target.parentNode.classList.add("no-cover");
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+              imgLoading ? "opacity-0" : "opacity-100"
+            }`}
+            onLoad={() => setImgLoading(false)}
+            onError={() => {
+              setImgError(true);
+              setImgLoading(false);
             }}
           />
         ) : null}
 
         {/* Fallback when no cover */}
         <div
-          className={`absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 ${coverSrc ? "hidden" : "flex"}`}
+          className={`absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 ${
+            showCover ? "hidden" : "flex"
+          }`}
         >
           <BookOpen className="w-10 h-10 text-slate-300" />
           <p className="text-xs text-slate-400 text-center line-clamp-3 font-medium">
             {book.title}
           </p>
+          {!imgLoading && (
+            <p className="text-[10px] text-slate-400 mt-1">Cover unavailable</p>
+          )}
         </div>
       </div>
 
@@ -107,13 +135,15 @@ const BookCard = ({ book, onClick }) => {
         </h3>
 
         <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
+          {/* Updated badge to use program color from database */}
           <span
-            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white"
+            style={{ backgroundColor: programColor }}
           >
-            {book.course}
+            {book.program_acronym || book.course || "N/A"}
           </span>
           <div className="flex items-center gap-1 text-xs text-gray-500">
-            <Download className="w-3 h-3" />
+            <Download className="w-3 h-3 text-blue-500" />
             <span className="text-xs">{formatDownloads(book.downloads)}</span>
           </div>
         </div>
@@ -123,35 +153,26 @@ const BookCard = ({ book, onClick }) => {
 };
 
 // ── Main Component ────────────────────────────────────────────────────────────
-const SearchResults = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
+const SearchResults = ({
+  initialSearchQuery = "",
+  initialCourse = "",
+  initialYear = "",
+  initialSort = "popular",
+  onClose,
+}) => {
   const navigate = useNavigate();
 
-  // Derive state from URL params
-  const queryParam = searchParams.get("q") || "";
-  const courseParam = searchParams.get("course") || "";
-  const yearParam = searchParams.get("year") || "";
-  const sortParam = searchParams.get("sort") || "popular";
-
   // Local search bar state
-  const [inputValue, setInputValue] = useState(queryParam);
+  const [inputValue, setInputValue] = useState(initialSearchQuery);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState(courseParam);
-  const [selectedYear, setSelectedYear] = useState(yearParam);
-  const [selectedSort, setSelectedSort] = useState(sortParam);
+  const [selectedCourse, setSelectedCourse] = useState(initialCourse);
+  const [selectedYear, setSelectedYear] = useState(initialYear);
+  const [selectedSort, setSelectedSort] = useState(initialSort);
 
   // Data state
   const [allEbooks, setAllEbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Sync local state when URL changes
-  useEffect(() => {
-    setInputValue(queryParam);
-    setSelectedCourse(courseParam);
-    setSelectedYear(yearParam);
-    setSelectedSort(sortParam);
-  }, [queryParam, courseParam, yearParam, sortParam]);
 
   // Fetch all ebooks once
   useEffect(() => {
@@ -174,27 +195,26 @@ const SearchResults = () => {
   const results = React.useMemo(() => {
     let filtered = [...allEbooks];
 
-    if (queryParam.trim()) {
-      const q = queryParam.toLowerCase();
+    if (initialSearchQuery.trim()) {
+      const q = initialSearchQuery.toLowerCase();
       filtered = filtered.filter(
         (b) =>
           b.title?.toLowerCase().includes(q) ||
           b.uploader_name?.toLowerCase().includes(q) ||
-          b.course?.toLowerCase().includes(q),
+          b.program_name?.toLowerCase().includes(q) ||
+          b.program_acronym?.toLowerCase().includes(q),
       );
     }
 
-    if (courseParam) {
-      filtered = filtered.filter(
-        (b) => b.course?.toUpperCase() === courseParam.toUpperCase(),
-      );
+    if (initialCourse) {
+      filtered = filtered.filter((b) => String(b.program_id) === initialCourse);
     }
 
-    if (yearParam) {
-      filtered = filtered.filter((b) => String(b.year_level) === yearParam);
+    if (initialYear) {
+      filtered = filtered.filter((b) => String(b.year_level) === initialYear);
     }
 
-    switch (sortParam) {
+    switch (initialSort) {
       case "popular":
         filtered.sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
         break;
@@ -211,260 +231,58 @@ const SearchResults = () => {
     }
 
     return filtered;
-  }, [allEbooks, queryParam, courseParam, yearParam, sortParam]);
-
-  // Update URL
-  const applySearch = useCallback(() => {
-    const params = {};
-    if (inputValue.trim()) params.q = inputValue.trim();
-    if (selectedCourse) params.course = selectedCourse;
-    if (selectedYear) params.year = selectedYear;
-    if (selectedSort) params.sort = selectedSort;
-    setSearchParams(params, { replace: true });
-    setShowFilters(false);
-  }, [inputValue, selectedCourse, selectedYear, selectedSort, setSearchParams]);
+  }, [allEbooks, initialSearchQuery, initialCourse, initialYear, initialSort]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    applySearch();
+    // Update the URL with search params and reload results
+    const params = new URLSearchParams();
+    if (inputValue.trim()) params.set("q", inputValue.trim());
+    if (selectedCourse) params.set("course", selectedCourse);
+    if (selectedYear) params.set("year", selectedYear);
+    if (selectedSort) params.set("sort", selectedSort);
+
+    // Navigate to search page with new params
+    navigate(`/search?${params.toString()}`);
   };
 
   const clearFilters = () => {
     setSelectedCourse("");
     setSelectedYear("");
     setSelectedSort("popular");
-    setSearchParams(
-      inputValue.trim()
-        ? { q: inputValue.trim(), sort: "popular" }
-        : { sort: "popular" },
-      { replace: true },
-    );
+    setInputValue("");
+
+    // Navigate to search page without filters
+    navigate("/search");
   };
 
-  const hasActiveFilters = courseParam || yearParam || sortParam !== "popular";
+  const handleBack = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      navigate("/");
+    }
+  };
+
+  const hasActiveFilters =
+    initialCourse || initialYear || initialSort !== "popular";
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      <Header />
-      <ScrollToTopButton showAfter={300} />
-
-      {/* Search Bar Strip */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="container mx-auto px-4 py-3">
-          <form onSubmit={handleSearchSubmit} className="relative">
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full overflow-hidden focus-within:ring-2 focus-within:ring-blue-300 focus-within:bg-white transition-all">
-              <div className="pl-5">
-                <Search className="w-4 h-4 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Search by title, author, or course..."
-                className="flex-1 px-3 py-0 h-[48px] focus:outline-none focus:ring-0 border-0 bg-transparent text-gray-700 text-sm"
-              />
-              {inputValue && (
-                <button
-                  type="button"
-                  onClick={() => setInputValue("")}
-                  className="px-2 text-gray-400 hover:text-gray-600 focus:outline-none"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 h-[48px] flex items-center gap-1.5 transition-colors focus:outline-none text-sm ${
-                  showFilters || hasActiveFilters
-                    ? "text-blue-600"
-                    : "text-gray-500 hover:text-blue-600"
-                }`}
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span className="hidden sm:inline">Filters</span>
-                {hasActiveFilters && (
-                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-                )}
-              </button>
-              <button
-                type="submit"
-                className="bg-blue-700 text-white px-6 h-[48px] font-medium hover:bg-blue-800 transition-colors text-sm focus:outline-none"
-              >
-                Search
-              </button>
-            </div>
-
-            {/* Filter dropdown - same as before */}
-            {showFilters && (
-              <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-40 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 text-sm flex items-center gap-2">
-                    <Filter className="w-4 h-4 text-blue-600" />
-                    Filter Books
-                  </h3>
-                  <button
-                    onClick={() => setShowFilters(false)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-3 items-end">
-                  {/* Course */}
-                  <div className="flex flex-col gap-1 min-w-[200px]">
-                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                      Course
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedCourse}
-                        onChange={(e) => setSelectedCourse(e.target.value)}
-                        className="w-full appearance-none px-3 py-2 pr-7 bg-white border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-                      >
-                        <option value="">All Courses</option>
-                        {COURSES.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Year */}
-                  <div className="flex flex-col gap-1 min-w-[120px]">
-                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                      Year Level
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedYear}
-                        onChange={(e) => setSelectedYear(e.target.value)}
-                        className="w-full appearance-none px-3 py-2 pr-7 bg-white border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-                      >
-                        <option value="">All Years</option>
-                        {YEAR_LEVELS.map((y) => (
-                          <option key={y.value} value={y.value}>
-                            {y.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Sort */}
-                  <div className="flex flex-col gap-1 min-w-[160px]">
-                    <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
-                      Sort By
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedSort}
-                        onChange={(e) => setSelectedSort(e.target.value)}
-                        className="w-full appearance-none px-3 py-2 pr-7 bg-white border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-300 cursor-pointer"
-                      >
-                        {SORT_OPTIONS.map((s) => (
-                          <option key={s.value} value={s.value}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 ml-auto">
-                    <button
-                      type="button"
-                      onClick={clearFilters}
-                      className="px-3 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none"
-                    >
-                      Clear All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={applySearch}
-                      className="px-4 py-2 text-xs bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition-colors focus:outline-none"
-                    >
-                      Apply Filters
-                    </button>
-                  </div>
-                </div>
-
-                {/* Active filter chips */}
-                {hasActiveFilters && (
-                  <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-gray-100">
-                    {courseParam && (
-                      <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">
-                        {COURSES.find((c) => c.value === courseParam)?.label ||
-                          courseParam}
-                        <button
-                          onClick={() => {
-                            setSelectedCourse("");
-                            setSearchParams(
-                              (p) => {
-                                const np = new URLSearchParams(p);
-                                np.delete("course");
-                                return np;
-                              },
-                              { replace: true },
-                            );
-                          }}
-                          className="hover:bg-blue-100 rounded-full p-0.5 focus:outline-none"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    )}
-                    {yearParam && (
-                      <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">
-                        {YEAR_LEVELS.find((y) => y.value === yearParam)
-                          ?.label || `Year ${yearParam}`}
-                        <button
-                          onClick={() => {
-                            setSelectedYear("");
-                            setSearchParams(
-                              (p) => {
-                                const np = new URLSearchParams(p);
-                                np.delete("year");
-                                return np;
-                              },
-                              { replace: true },
-                            );
-                          }}
-                          className="hover:bg-blue-100 rounded-full p-0.5 focus:outline-none"
-                        >
-                          <X className="w-2.5 h-2.5" />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </form>
-        </div>
-      </div>
-
       {/* Results Area */}
       <main className="container mx-auto px-4 py-6">
         {/* Back + heading */}
         <div className="flex items-center gap-3 mb-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={handleBack}
             className="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors focus:outline-none"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <h1 className="text-lg font-bold text-gray-900">
-              {queryParam
-                ? `Results for "${queryParam}"`
+              {initialSearchQuery
+                ? `Results for "${initialSearchQuery}"`
                 : hasActiveFilters
                   ? "Filtered Results"
                   : "All eBooks"}
@@ -525,16 +343,12 @@ const SearchResults = () => {
                 No eBooks Found
               </h3>
               <p className="text-xs text-gray-500 max-w-xs">
-                {queryParam
-                  ? `We couldn't find any books matching "${queryParam}". Try different keywords or clear the filters.`
+                {initialSearchQuery
+                  ? `We couldn't find any books matching "${initialSearchQuery}". Try different keywords or clear the filters.`
                   : "No books match the current filters. Try adjusting your search."}
               </p>
               <button
-                onClick={() => {
-                  setInputValue("");
-                  clearFilters();
-                  setSearchParams({}, { replace: true });
-                }}
+                onClick={clearFilters}
                 className="mt-3 inline-flex items-center gap-1.5 text-xs bg-blue-700 text-white px-3 py-1.5 rounded-lg hover:bg-blue-800 transition-colors"
               >
                 <X className="w-3 h-3" />
@@ -557,8 +371,6 @@ const SearchResults = () => {
           </div>
         )}
       </main>
-
-      <Footer />
     </div>
   );
 };
