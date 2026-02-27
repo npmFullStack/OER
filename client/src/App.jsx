@@ -14,6 +14,7 @@ import Programs from "@/pages/Programs";
 import AddProgram from "@/pages/AddProgram";
 import AllEbooks from "@/pages/AllEbooks";
 import EbooksByProgram from "@/pages/EbooksByProgram";
+import ProgramDetails from "@/pages/ProgramDetails";
 
 const App = () => {
   return (
@@ -63,6 +64,7 @@ const App = () => {
             <Route path="/programs" element={<Programs />} />
             <Route path="/programs/add" element={<AddProgram />} />
             <Route path="/programs/edit/:id" element={<AddProgram />} />
+            <Route path="/program/:id" element={<ProgramDetails />} />
             <Route path="/settings" element={<div>Settings Page</div>} />
             <Route
               path="/notifications"

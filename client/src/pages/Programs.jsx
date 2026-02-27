@@ -1,6 +1,6 @@
 // src/pages/Programs.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   GraduationCap,
   Plus,
@@ -9,9 +9,10 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import programService from "../services/programService";
+import programService from "@/services/programService";
 
 const Programs = () => {
   const navigate = useNavigate();
@@ -190,48 +191,72 @@ const Programs = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {currentItems.map((program) => (
-                  <tr key={program.id} className="hover:bg-gray-50">
+                  <tr key={program.id} className="hover:bg-gray-50 group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold"
-                          style={{ backgroundColor: program.color }}
+                        <Link
+                          to={`/program/${program.id}`}
+                          className="flex items-center gap-3 flex-1"
                         >
-                          {program.acronym?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {program.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Created by: {program.created_by_name}
-                          </p>
-                        </div>
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold"
+                            style={{ backgroundColor: program.color }}
+                          >
+                            {program.acronym?.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                {program.name}
+                              </p>
+                              <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              Created by: {program.created_by_name}
+                            </p>
+                          </div>
+                        </Link>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-mono text-sm font-medium text-gray-900">
+                      <Link
+                        to={`/program/${program.id}`}
+                        className="font-mono text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
+                      >
                         {program.acronym}
-                      </span>
+                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <Link
+                        to={`/program/${program.id}`}
+                        className="flex items-center gap-2"
+                      >
                         <div
                           className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
                           style={{ backgroundColor: program.color }}
                         />
-                        <span className="text-sm text-gray-600 font-mono">
+                        <span className="text-sm text-gray-600 font-mono hover:text-blue-600 transition-colors">
                           {program.color}
                         </span>
-                      </div>
+                      </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-700">
-                        {program.total_ebooks || 0} eBooks
-                      </span>
+                      <Link
+                        to={`/program/${program.id}`}
+                        className="inline-block"
+                      >
+                        <span className="px-2 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                          {program.total_ebooks || 0} eBooks
+                        </span>
+                      </Link>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {formatDate(program.created_at)}
+                    <td className="px-6 py-4">
+                      <Link
+                        to={`/program/${program.id}`}
+                        className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                      >
+                        {formatDate(program.created_at)}
+                      </Link>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
