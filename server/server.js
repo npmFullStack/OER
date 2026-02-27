@@ -7,6 +7,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import authRoutes from "./authRoutes.js";
 import ebookRoutes from "./ebookRoutes.js";
+import programRoutes from "./programRoutes.js"; // Import program routes
 import { initializeDatabase } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,6 +100,7 @@ app.get("/api/debug/paths", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/ebooks", ebookRoutes);
+app.use("/api/programs", programRoutes); // Add program routes
 
 // Health check route
 app.get("/api/health", (req, res) => {
@@ -125,5 +127,6 @@ initializeDatabase().then((success) => {
     console.log(
       `🔍 Test image URL: http://192.168.254.106:${PORT}/uploads/covers/test.jpg`,
     );
+    console.log(`📚 Program routes available at /api/programs`);
   });
 });

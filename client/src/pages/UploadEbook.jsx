@@ -14,6 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 import { ebookService } from "@/services/ebookService";
+import programService from "@/services/programService";
 import toast from "react-hot-toast";
 import instruction from "@/assets/images/instruction.png";
 import * as pdfjsLib from "pdfjs-dist";
@@ -23,32 +24,46 @@ const UploadEbook = () => {
 
   const [formData, setFormData] = useState({
     title: "",
-    course: "",
+    programId: "",
     yearLevel: "",
   });
 
+  const [programs, setPrograms] = useState([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [loading, setLoading] = useState(false);
   const [coverPreview, setCoverPreview] = useState(null);
   const [extractingCover, setExtractingCover] = useState(false);
 
-  // Initialize pdf.js worker - use the version that matches the installed package
+  // Fetch programs on mount
   useEffect(() => {
-    // Dynamically match the installed pdfjs-dist version
+    fetchPrograms();
+  }, []);
+
+  // Initialize pdf.js worker
+  useEffect(() => {
     const pdfjsVersion = pdfjsLib.version;
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
     console.log("PDF.js worker initialized with version:", pdfjsVersion);
   }, []);
 
-  // Course options
-  const courses = [
-    { value: "BSIT", label: "Bachelor of Science in Information Technology" },
-    { value: "BSBA-FM", label: "BSBA Financial Management" },
-    { value: "BSBA-MM", label: "BSBA Marketing Management" },
-    { value: "BEED", label: "Bachelor of Elementary Education" },
-    { value: "BSED", label: "Bachelor of Secondary Education" },
-  ];
+  const fetchPrograms = async () => {
+    try {
+      setLoadingPrograms(true);
+      const response = await programService.getAll();
+      if (response.success) {
+        setPrograms(response.data || []);
+      } else {
+        toast.error("Failed to load programs");
+      }
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+      toast.error("Failed to load programs");
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
 
   // Year levels
   const yearLevels = [
@@ -96,7 +111,6 @@ const UploadEbook = () => {
     const arrayBuffer = await file.arrayBuffer();
     const pdfjsVersion = pdfjsLib.version;
 
-    // Try multiple worker URLs in order
     const workerUrls = [
       `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`,
       `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
@@ -119,29 +133,10 @@ const UploadEbook = () => {
       }
     }
 
-    // All workers failed
     console.error("All worker URLs failed. Last error:", lastError);
     toast.error("Could not extract cover page, but you can still upload");
     setCoverPreview(null);
     setExtractingCover(false);
-  };
-
-  // Helper function to convert dataURL to Blob
-  const dataURLtoBlob = (dataURL) => {
-    try {
-      const arr = dataURL.split(",");
-      const mime = arr[0].match(/:(.*?);/)[1];
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-      }
-      return new Blob([u8arr], { type: mime });
-    } catch (error) {
-      console.error("Error converting dataURL to blob:", error);
-      return null;
-    }
   };
 
   const handleFileChange = async (e) => {
@@ -154,14 +149,12 @@ const UploadEbook = () => {
       return;
     }
 
-    // Check if file is PDF
     if (selectedFile.type !== "application/pdf") {
       setFileError("Please upload a PDF file only");
       setFile(null);
       return;
     }
 
-    // Check file size (max 50MB)
     if (selectedFile.size > 50 * 1024 * 1024) {
       setFileError("File size must be less than 50MB");
       setFile(null);
@@ -169,8 +162,6 @@ const UploadEbook = () => {
     }
 
     setFile(selectedFile);
-
-    // Extract and preview the first page
     await extractPdfCover(selectedFile);
   };
 
@@ -194,13 +185,12 @@ const UploadEbook = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Simple validation
     if (!file) {
       toast.error("Please upload a PDF file");
       return;
     }
 
-    if (!formData.title || !formData.course || !formData.yearLevel) {
+    if (!formData.title || !formData.programId || !formData.yearLevel) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -210,13 +200,11 @@ const UploadEbook = () => {
     const uploadData = new FormData();
     uploadData.append("ebook", file);
     uploadData.append("title", formData.title);
-    uploadData.append("course", formData.course);
+    uploadData.append("programId", formData.programId);
     uploadData.append("yearLevel", formData.yearLevel);
 
-    // If we have a cover preview, send it to the server
     if (coverPreview) {
       try {
-        // Convert dataURL to blob
         const response = await fetch(coverPreview);
         const blob = await response.blob();
         const coverFile = new File([blob], "cover.jpg", { type: "image/jpeg" });
@@ -237,16 +225,14 @@ const UploadEbook = () => {
       if (response.success) {
         toast.success("eBook uploaded successfully");
 
-        // Reset form
         setFormData({
           title: "",
-          course: "",
+          programId: "",
           yearLevel: "",
         });
         setFile(null);
         setCoverPreview(null);
 
-        // Redirect after 2 seconds
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
@@ -263,6 +249,11 @@ const UploadEbook = () => {
       setLoading(false);
     }
   };
+
+  // Get selected program for preview
+  const selectedProgram = programs.find(
+    (p) => p.id === parseInt(formData.programId),
+  );
 
   return (
     <div className="bg-white rounded-xl p-6">
@@ -414,16 +405,21 @@ const UploadEbook = () => {
                     <div className="relative">
                       <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <select
-                        name="course"
-                        value={formData.course}
+                        name="programId"
+                        value={formData.programId}
                         onChange={handleChange}
                         required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                        disabled={loadingPrograms}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white disabled:bg-gray-100"
                       >
-                        <option value="">Select Program</option>
-                        {courses.map((course) => (
-                          <option key={course.value} value={course.value}>
-                            {course.label}
+                        <option value="">
+                          {loadingPrograms
+                            ? "Loading programs..."
+                            : "Select Program"}
+                        </option>
+                        {programs.map((program) => (
+                          <option key={program.id} value={program.id}>
+                            {program.acronym} - {program.name}
                           </option>
                         ))}
                       </select>
@@ -453,6 +449,31 @@ const UploadEbook = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Program Preview (if program selected) */}
+                {selectedProgram && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 mb-2">
+                      Selected Program Preview:
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold"
+                        style={{ backgroundColor: selectedProgram.color }}
+                      >
+                        {selectedProgram.acronym?.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {selectedProgram.name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Acronym: {selectedProgram.acronym}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -460,7 +481,7 @@ const UploadEbook = () => {
             <div className="flex gap-4">
               <button
                 type="submit"
-                disabled={loading || extractingCover}
+                disabled={loading || extractingCover || loadingPrograms}
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? "Uploading..." : "Upload eBook"}

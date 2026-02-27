@@ -19,7 +19,10 @@ const normalizeEbook = (ebook) => {
     ...ebook,
     id: ebook.id,
     title: ebook.title,
-    course: ebook.course,
+    program_id: ebook.program_id,
+    program_name: ebook.program_name,
+    program_acronym: ebook.program_acronym,
+    program_color: ebook.program_color,
     year_level: ebook.year_level,
     downloads: ebook.downloads || 0,
     // Construct proper URLs
@@ -85,6 +88,11 @@ export const ebookService = {
 
   getEbook: async (id) => {
     const response = await api.get(`/ebooks/${id}`);
+    return normalizeResponse(response.data);
+  },
+
+  getEbooksByProgram: async (programId) => {
+    const response = await api.get(`/ebooks/program/${programId}`);
     return normalizeResponse(response.data);
   },
 

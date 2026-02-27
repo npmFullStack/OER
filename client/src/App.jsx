@@ -10,6 +10,8 @@ import Ebooks from "@/pages/Ebooks";
 import SearchResults from "@/pages/SearchResults";
 import EbookDetails from "@/pages/EbookDetails";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import Programs from "@/pages/Programs";
+import AddProgram from "@/pages/AddProgram";
 
 const App = () => {
   return (
@@ -51,7 +53,9 @@ const App = () => {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/upload" element={<UploadEbook />} />
             <Route path="/my-ebooks" element={<Ebooks />} />
-            <Route path="/my-courses" element={<div>Courses Page</div>} />
+            <Route path="/programs" element={<Programs />} />
+            <Route path="/programs/add" element={<AddProgram />} />
+            <Route path="/programs/edit/:id" element={<AddProgram />} />
             <Route path="/settings" element={<div>Settings Page</div>} />
             <Route
               path="/notifications"

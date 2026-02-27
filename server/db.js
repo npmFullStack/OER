@@ -34,14 +34,31 @@ export const initializeDatabase = async () => {
         INDEX idx_email (email)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
-    console.log("Users table ready");
+    console.log("✅ Users table ready");
 
-    // Create ebooks table
+    // Create programs table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS programs (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name VARCHAR(255) NOT NULL,
+        acronym VARCHAR(10) NOT NULL UNIQUE,
+        color VARCHAR(50) NOT NULL DEFAULT '#3b82f6',
+        created_by INT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_acronym (acronym),
+        INDEX idx_created_by (created_by)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    console.log("✅ Programs table ready");
+
+    // Create ebooks table (with program_id instead of course)
     await connection.query(`
       CREATE TABLE IF NOT EXISTS ebooks (
         id INT PRIMARY KEY AUTO_INCREMENT,
         title VARCHAR(255) NOT NULL,
-        course VARCHAR(50) NOT NULL,
+        program_id INT NOT NULL,
         year_level VARCHAR(10) NOT NULL,
         file_name VARCHAR(255) NOT NULL,
         file_path VARCHAR(500) NOT NULL,
@@ -51,18 +68,19 @@ export const initializeDatabase = async () => {
         downloads INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
         FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
-        INDEX idx_course (course),
+        INDEX idx_program_id (program_id),
         INDEX idx_year_level (year_level),
         INDEX idx_uploaded_by (uploaded_by)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
-    console.log("Ebooks table ready");
+    console.log("✅ Ebooks table ready");
 
     connection.release();
     return true;
   } catch (error) {
-    console.error("Database initialization failed:", error.message);
+    console.error("❌ Database initialization failed:", error.message);
     return false;
   }
 };
@@ -71,11 +89,11 @@ export const initializeDatabase = async () => {
 export const testConnection = async () => {
   try {
     const connection = await pool.getConnection();
-    console.log("Database connection test successful");
+    console.log("✅ Database connection test successful");
     connection.release();
     return true;
   } catch (error) {
-    console.error("Database connection test failed:", error.message);
+    console.error("❌ Database connection test failed:", error.message);
     return false;
   }
 };

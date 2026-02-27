@@ -4,16 +4,11 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Search,
   BookOpen,
-  Users,
-  BookMarked,
   ArrowRight,
   Download,
   X,
   Filter,
-  Award,
-  Sparkles,
   GraduationCap,
-  BookText,
   TrendingUp,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
@@ -21,6 +16,7 @@ import Footer from "@/components/layout/Footer";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
 import heroBg from "@/assets/images/heroBg.png";
 import { ebookService } from "@/services/ebookService";
+import programService from "@/services/programService";
 
 const formatDownloads = (n) => {
   if (!n && n !== 0) return "0";
@@ -28,19 +24,11 @@ const formatDownloads = (n) => {
   return String(n);
 };
 
-const getCourseBadgeColor = (courseCode) => {
-  switch ((courseCode || "").toUpperCase()) {
-    case "BSED":
-    case "BEED":
-      return "bg-blue-100 text-blue-700";
-    case "BSBA-FM":
-    case "BSBA-MM":
-      return "bg-yellow-100 text-yellow-700";
-    case "BSIT":
-      return "bg-red-100 text-red-700";
-    default:
-      return "bg-indigo-50 text-indigo-700";
-  }
+const formatNumber = (n) => {
+  if (!n && n !== 0) return "0";
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return String(n);
 };
 
 const FeaturedBookCard = ({ book, onClick }) => {
@@ -65,6 +53,9 @@ const FeaturedBookCard = ({ book, onClick }) => {
 
   const coverUrl = getCoverUrl();
   const showCover = coverUrl && !imgError;
+
+  // Use program color from database or default to blue
+  const programColor = book.program_color || "#3b82f6";
 
   return (
     <div
@@ -118,9 +109,10 @@ const FeaturedBookCard = ({ book, onClick }) => {
         </h3>
         <div className="flex items-center justify-between pt-2 border-t border-gray-100">
           <span
-            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${getCourseBadgeColor(book.course)}`}
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white"
+            style={{ backgroundColor: programColor }}
           >
-            {book.course}
+            {book.program_acronym || "N/A"}
           </span>
           <div className="flex items-center gap-1 text-xs text-gray-500">
             <Download className="w-3 h-3 text-blue-500" />
@@ -134,6 +126,61 @@ const FeaturedBookCard = ({ book, onClick }) => {
   );
 };
 
+// Convert hex color to a very light tint for card background
+const hexToLightBg = (hex) => {
+  try {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.08)`;
+  } catch {
+    return "rgba(59,130,246,0.08)";
+  }
+};
+
+const ProgramCard = ({ program, onClick }) => {
+  const color = program.color || "#3b82f6";
+  const lightBg = hexToLightBg(color);
+
+  return (
+    <div
+      onClick={onClick}
+      className="group rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 border border-transparent hover:border-gray-200 flex"
+      style={{ backgroundColor: lightBg }}
+    >
+      {/* Left color bar */}
+      <div
+        className="w-1 flex-shrink-0 rounded-l-xl"
+        style={{ backgroundColor: color }}
+      />
+
+      {/* Card content */}
+      <div className="flex items-center gap-4 p-4 flex-1 min-w-0">
+        <div style={{ color }}>
+          <GraduationCap className="w-6 h-6 flex-shrink-0" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-gray-900 text-sm mb-0.5">
+            {program.acronym}
+          </h3>
+          <p className="text-xs text-gray-500 truncate">{program.name}</p>
+          <p
+            className="text-xs mt-1 font-medium flex items-center gap-1"
+            style={{ color }}
+          >
+            <BookOpen className="w-3 h-3" />
+            {program.total_ebooks || 0} eBooks
+          </p>
+        </div>
+        <ArrowRight
+          className="w-4 h-4 flex-shrink-0 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all"
+          style={{ color }}
+        />
+      </div>
+    </div>
+  );
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,40 +189,97 @@ const Home = () => {
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedSort, setSelectedSort] = useState("popular");
 
-  // Real featured books (top 3 by downloads)
+  // Real data states
   const [featuredBooks, setFeaturedBooks] = useState([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const [programs, setPrograms] = useState([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
+  const [stats, setStats] = useState({
+    totalEbooks: 0,
+    totalPrograms: 0,
+    totalDownloads: 0,
+  });
 
   useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        const data = await ebookService.getEbooks();
-        console.log("Raw ebook data:", data); // Debug log
-
-        const books = Array.isArray(data) ? data : data.data || [];
-        console.log(
-          "Books with URLs:",
-          books.map((b) => ({
-            id: b.id,
-            title: b.title,
-            cover_url: b.cover_url,
-            cover_image_path: b.cover_image_path,
-          })),
-        );
-
-        const top3 = [...books]
-          .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
-          .slice(0, 3);
-        setFeaturedBooks(top3);
-      } catch (err) {
-        console.error("Failed to load featured books:", err);
-        setFeaturedBooks([]);
-      } finally {
-        setLoadingFeatured(false);
-      }
-    };
-    fetchFeatured();
+    fetchFeaturedBooks();
+    fetchPrograms();
+    fetchStats();
   }, []);
+
+  const fetchFeaturedBooks = async () => {
+    try {
+      const data = await ebookService.getEbooks();
+      const books = Array.isArray(data) ? data : data.data || [];
+      const top3 = [...books]
+        .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
+        .slice(0, 3);
+      setFeaturedBooks(top3);
+    } catch (err) {
+      console.error("Failed to load featured books:", err);
+      setFeaturedBooks([]);
+    } finally {
+      setLoadingFeatured(false);
+    }
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      setLoadingPrograms(true);
+      // Use the endpoint that returns programs with ebook counts
+      const response = await programService.getWithEbookCounts();
+      if (response.success && response.data?.length > 0) {
+        setPrograms(response.data);
+      } else {
+        // Fallback: fetch all programs without counts
+        const fallback = await programService.getAll();
+        setPrograms(fallback.success ? fallback.data || [] : []);
+      }
+    } catch (error) {
+      console.error(
+        "Error fetching programs with counts, trying fallback:",
+        error,
+      );
+      try {
+        const fallback = await programService.getAll();
+        setPrograms(fallback.success ? fallback.data || [] : []);
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
+        setPrograms([]);
+      }
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      // Fetch all ebooks to calculate stats
+      const ebooksData = await ebookService.getEbooks();
+      const ebooks = Array.isArray(ebooksData)
+        ? ebooksData
+        : ebooksData.data || [];
+
+      // Fetch programs for count
+      const programsResponse = await programService.getAll();
+      const programsList = programsResponse.success
+        ? programsResponse.data || []
+        : [];
+
+      // Calculate total downloads
+      const totalDownloads = ebooks.reduce(
+        (sum, book) => sum + (book.downloads || 0),
+        0,
+      );
+
+      setStats({
+        totalEbooks: ebooks.length,
+        totalPrograms: programsList.length,
+        totalDownloads: totalDownloads,
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -193,28 +297,11 @@ const Home = () => {
     setSelectedSort("popular");
   };
 
-  // Course options for OPOL Community College
-  const courses = [
-    {
-      value: "bsit",
-      label: "Bachelor of Science in Information Technology",
-      color: "red",
-    },
-    {
-      value: "bsba-fm",
-      label:
-        "Bachelor of Science in Business Administration major in Financial Management",
-      color: "yellow",
-    },
-    {
-      value: "bsba-mm",
-      label:
-        "Bachelor of Science in Business Administration major in Marketing Management",
-      color: "yellow",
-    },
-    { value: "beed", label: "Bachelor of Elementary Education", color: "blue" },
-    { value: "bsed", label: "Bachelor of Secondary Education", color: "blue" },
-  ];
+  // Course options derived from fetched programs
+  const courses = programs.map((p) => ({
+    value: String(p.id),
+    label: `${p.acronym} – ${p.name}`,
+  }));
 
   // Year levels
   const yearLevels = [
@@ -224,59 +311,10 @@ const Home = () => {
     { value: "4", label: "4th Year" },
   ];
 
-  // Browse by Course
-  const browseCourses = [
-    {
-      name: "BS Information Technology",
-      count: 245,
-      icon: Award,
-      code: "BSIT",
-      color: "green",
-    },
-    {
-      name: "BSBA Financial Management",
-      count: 98,
-      icon: BookMarked,
-      code: "BSBA-FM",
-      color: "yellow",
-    },
-    {
-      name: "BSBA Marketing Management",
-      count: 91,
-      icon: BookMarked,
-      code: "BSBA-MM",
-      color: "yellow",
-    },
-    {
-      name: "B Elementary Education",
-      count: 123,
-      icon: GraduationCap,
-      code: "BEED",
-      color: "blue",
-    },
-    {
-      name: "B Secondary Education",
-      count: 87,
-      icon: BookText,
-      code: "BSED",
-      color: "red",
-    },
-    {
-      name: "Short Courses & Certificates",
-      count: 156,
-      icon: Sparkles,
-      code: "SHORT",
-      color: "purple",
-    },
-  ];
-
-  // Stats
-  const stats = [
-    { label: "eBooks Available", value: "5,000+", icon: BookOpen },
-    { label: "Active Students", value: "2,500+", icon: Users },
-    { label: "Courses Covered", value: "15+", icon: GraduationCap },
-    { label: "Downloads", value: "50K+", icon: Download },
-  ];
+  // Active filter count (exclude sort since it has a default)
+  const activeFilterCount = [selectedCourse, selectedYear].filter(
+    Boolean,
+  ).length;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
@@ -300,7 +338,8 @@ const Home = () => {
               <span className="text-blue-600 block mt-2">Digital Library</span>
             </h1>
             <p className="text-lg text-gray-300 mb-8">
-              Access thousands of eBooks tailored for your course and year level
+              Access thousands of eBooks tailored for your program and year
+              level
             </p>
 
             {/* Search Bar - Clean Design */}
@@ -313,20 +352,25 @@ const Home = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by title, author, or course..."
+                  placeholder="Search by title, author, or program..."
                   className="flex-1 px-3 py-0 h-[56px] focus:outline-none focus:ring-0 focus:border-transparent border-0 ring-0 outline-none text-gray-700"
                 />
                 <button
                   type="button"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`px-5 h-[56px] flex items-center gap-2 transition-colors focus:outline-none focus:ring-0 ${
-                    showFilters || selectedCourse !== "" || selectedYear !== ""
+                  className={`relative px-5 h-[56px] flex items-center gap-2 transition-colors focus:outline-none focus:ring-0 ${
+                    showFilters || activeFilterCount > 0
                       ? "text-primary"
                       : "text-gray-500 hover:text-primary"
                   }`}
                 >
                   <Filter className="w-4 h-4" />
                   <span className="text-sm hidden sm:inline">Filter</span>
+                  {activeFilterCount > 0 && (
+                    <span className="absolute top-2 right-2 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                      {activeFilterCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="submit"
@@ -354,14 +398,14 @@ const Home = () => {
 
                     {/* Single Row Filters */}
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* Course Filter */}
+                      {/* Program Filter */}
                       <div className="relative min-w-[180px]">
                         <select
                           value={selectedCourse}
                           onChange={(e) => setSelectedCourse(e.target.value)}
                           className="w-full appearance-none px-2 py-1.5 pr-6 bg-white border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer hover:border-gray-400 transition-colors"
                         >
-                          <option value="">All Courses</option>
+                          <option value="">All Programs</option>
                           {courses.map((course) => (
                             <option key={course.value} value={course.value}>
                               {course.label}
@@ -425,7 +469,6 @@ const Home = () => {
                         >
                           <option value="popular">Most Popular</option>
                           <option value="recent">Recently Added</option>
-                          <option value="rating">Highest Rated</option>
                           <option value="title">Title A-Z</option>
                         </select>
                         <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -465,10 +508,8 @@ const Home = () => {
                       <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-gray-100">
                         {selectedCourse && (
                           <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs">
-                            {
-                              courses.find((c) => c.value === selectedCourse)
-                                ?.label
-                            }
+                            {courses.find((c) => c.value === selectedCourse)
+                              ?.label || selectedCourse}
                             <button
                               onClick={() => setSelectedCourse("")}
                               className="hover:bg-primary/20 rounded-full p-0.5 focus:outline-none focus:ring-0"
@@ -544,7 +585,6 @@ const Home = () => {
               <p className="text-sm">No books uploaded yet.</p>
             </div>
           ) : (
-            // Centered flex row
             <div className="flex flex-wrap gap-6 justify-center">
               {featuredBooks.map((book) => (
                 <FeaturedBookCard
@@ -558,66 +598,51 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Browse by Course Section */}
+      {/* Browse by Program Section */}
       <section className="py-16 bg-white border-y border-gray-200">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-1">
-              Browse by Course
+              Browse by Program
             </h2>
             <p className="text-sm text-gray-600">
-              Find books specific to your program of study
+              Find eBooks specific to your program of study
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {browseCourses.map((course, index) => {
-              const Icon = course.icon;
-
-              return (
-                <Link
-                  key={index}
-                  to={`/course/${course.code.toLowerCase()}`}
-                  className="bg-gray-50 hover:bg-primary group p-4 rounded-lg text-left transition-all duration-300 flex items-center gap-4"
+          {loadingPrograms ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="bg-gray-50 rounded-lg p-4 animate-pulse"
                 >
-                  <div className="p-2 rounded-lg bg-white/80 group-hover:bg-white/20 transition-colors">
-                    <Icon className="w-5 h-5 text-primary group-hover:text-white transition-colors" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 bg-gray-200 rounded-lg" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-1/3" />
+                      <div className="h-3 bg-gray-200 rounded w-2/3" />
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 group-hover:text-white transition-colors text-sm">
-                      {course.name}
-                    </h3>
-                    <p className="text-xs text-gray-600 group-hover:text-white/90 transition-colors">
-                      {course.count} books available
-                    </p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 ml-auto text-gray-400 group-hover:text-white group-hover:translate-x-1 transition-all" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {stats.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <div key={index} className="text-center">
-                  <div className="inline-flex p-2 bg-primary/10 rounded-full mb-2">
-                    <Icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">
-                    {stat.value}
-                  </h3>
-                  <p className="text-xs text-gray-600">{stat.label}</p>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : programs.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <GraduationCap className="w-12 h-12 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">No programs added yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {programs.map((program) => (
+                <ProgramCard
+                  key={program.id}
+                  program={program}
+                  onClick={() => navigate(`/program/${program.id}`)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -628,7 +653,7 @@ const Home = () => {
             Start Your Learning Journey
           </h2>
           <p className="text-white/90 mb-4 max-w-xl mx-auto text-sm">
-            Access course-specific materials and enhance your studies
+            Access program-specific materials and enhance your studies
           </p>
           <div className="flex gap-3 justify-center">
             <Link

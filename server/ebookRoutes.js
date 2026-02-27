@@ -182,13 +182,18 @@ router.get("/debug", (req, res) => {
 // PUBLIC ROUTES
 // =============================================
 
-// Get all ebooks
+// Get all ebooks with program details
 router.get("/", async (req, res) => {
   try {
     const [ebooks] = await pool.query(`
-      SELECT e.*, CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
+      SELECT e.*, 
+             CONCAT(u.firstname, ' ', u.lastname) as uploader_name,
+             p.name as program_name,
+             p.acronym as program_acronym,
+             p.color as program_color
       FROM ebooks e 
       JOIN users u ON e.uploaded_by = u.id 
+      LEFT JOIN programs p ON e.program_id = p.id
       ORDER BY e.created_at DESC
     `);
 
@@ -210,9 +215,14 @@ router.get("/:id", async (req, res) => {
   try {
     const [ebooks] = await pool.query(
       `
-      SELECT e.*, CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
+      SELECT e.*, 
+             CONCAT(u.firstname, ' ', u.lastname) as uploader_name,
+             p.name as program_name,
+             p.acronym as program_acronym,
+             p.color as program_color
       FROM ebooks e 
       JOIN users u ON e.uploaded_by = u.id 
+      LEFT JOIN programs p ON e.program_id = p.id
       WHERE e.id = ?
     `,
       [req.params.id],
@@ -264,6 +274,38 @@ router.get("/:id/download", async (req, res) => {
   }
 });
 
+// Get ebooks by program
+router.get("/program/:programId", async (req, res) => {
+  try {
+    const [ebooks] = await pool.query(
+      `
+      SELECT e.*, 
+             CONCAT(u.firstname, ' ', u.lastname) as uploader_name,
+             p.name as program_name,
+             p.acronym as program_acronym,
+             p.color as program_color
+      FROM ebooks e 
+      JOIN users u ON e.uploaded_by = u.id 
+      LEFT JOIN programs p ON e.program_id = p.id
+      WHERE e.program_id = ?
+      ORDER BY e.created_at DESC
+    `,
+      [req.params.programId],
+    );
+
+    res.json(
+      createResponse(
+        true,
+        "eBooks retrieved successfully",
+        ebooks.map(withUrls),
+      ),
+    );
+  } catch (error) {
+    console.error("Get ebooks by program error:", error);
+    res.status(500).json(createResponse(false, "Server error"));
+  }
+});
+
 // =============================================
 // PROTECTED ROUTES
 // =============================================
@@ -288,14 +330,27 @@ router.post(
       }
 
       const ebookFile = req.files.ebook[0];
-      const { title, course, yearLevel } = req.body;
+      const { title, programId, yearLevel } = req.body;
 
       // Validate required fields
-      if (!title?.trim() || !course?.trim() || !yearLevel?.trim()) {
+      if (!title?.trim() || !programId || !yearLevel?.trim()) {
         safeDeleteFile(ebookFile.path);
         return res
           .status(400)
           .json(createResponse(false, "Please fill in all required fields"));
+      }
+
+      // Verify program exists
+      const [programs] = await pool.query(
+        "SELECT id FROM programs WHERE id = ?",
+        [programId],
+      );
+
+      if (programs.length === 0) {
+        safeDeleteFile(ebookFile.path);
+        return res
+          .status(400)
+          .json(createResponse(false, "Selected program does not exist"));
       }
 
       console.log("✅ PDF saved at:", ebookFile.path);
@@ -326,11 +381,11 @@ router.post(
       console.log("💾 Inserting into database...");
       const [result] = await pool.query(
         `INSERT INTO ebooks 
-         (title, course, year_level, file_name, file_path, file_size, cover_image_path, uploaded_by) 
+         (title, program_id, year_level, file_name, file_path, file_size, cover_image_path, uploaded_by) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           title.trim(),
-          course.trim(),
+          programId,
           yearLevel.trim(),
           ebookFile.originalname,
           ebookFile.path,
@@ -340,12 +395,17 @@ router.post(
         ],
       );
 
-      // Fetch the created ebook
+      // Fetch the created ebook with program details
       const [ebooks] = await pool.query(
         `
-        SELECT e.*, CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
+        SELECT e.*, 
+               CONCAT(u.firstname, ' ', u.lastname) as uploader_name,
+               p.name as program_name,
+               p.acronym as program_acronym,
+               p.color as program_color
         FROM ebooks e 
         JOIN users u ON e.uploaded_by = u.id 
+        LEFT JOIN programs p ON e.program_id = p.id
         WHERE e.id = ?
       `,
         [result.insertId],
@@ -382,7 +442,14 @@ router.post(
 router.get("/my-ebooks", authenticateToken, async (req, res) => {
   try {
     const [ebooks] = await pool.query(
-      "SELECT * FROM ebooks WHERE uploaded_by = ? ORDER BY created_at DESC",
+      `SELECT e.*, 
+              p.name as program_name,
+              p.acronym as program_acronym,
+              p.color as program_color
+       FROM ebooks e 
+       LEFT JOIN programs p ON e.program_id = p.id
+       WHERE e.uploaded_by = ? 
+       ORDER BY e.created_at DESC`,
       [req.user.id],
     );
 

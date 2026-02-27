@@ -15,11 +15,25 @@ CREATE TABLE IF NOT EXISTS users (
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create ebooks table
+-- Create programs table (first, since ebooks will reference it)
+CREATE TABLE IF NOT EXISTS programs (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    acronym VARCHAR(10) NOT NULL UNIQUE,
+    color VARCHAR(50) NOT NULL DEFAULT '#3b82f6',
+    created_by INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_acronym (acronym),
+    INDEX idx_created_by (created_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create ebooks table (with program_id instead of course)
 CREATE TABLE IF NOT EXISTS ebooks (
     id INT PRIMARY KEY AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
-    course VARCHAR(50) NOT NULL,
+    program_id INT NOT NULL,  -- Replaces 'course' field
     year_level VARCHAR(10) NOT NULL,
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(500) NOT NULL,
@@ -29,8 +43,9 @@ CREATE TABLE IF NOT EXISTS ebooks (
     downloads INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (program_id) REFERENCES programs(id) ON DELETE CASCADE,
     FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_course (course),
+    INDEX idx_program_id (program_id),
     INDEX idx_year_level (year_level),
     INDEX idx_uploaded_by (uploaded_by)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
