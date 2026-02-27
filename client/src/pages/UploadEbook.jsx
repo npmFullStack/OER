@@ -405,11 +405,11 @@ const UploadEbook = () => {
                   </div>
                 </div>
 
-                {/* Course and Year Level */}
+                {/* Program and Year Level */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Course <span className="text-red-500">*</span>
+                      Program <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -420,7 +420,7 @@ const UploadEbook = () => {
                         required
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
                       >
-                        <option value="">Select Course</option>
+                        <option value="">Select Program</option>
                         {courses.map((course) => (
                           <option key={course.value} value={course.value}>
                             {course.label}
@@ -537,7 +537,7 @@ const UploadEbook = () => {
                     Fill Book Details
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Add title, course, and year level information
+                    Add title, program, and year level information
                   </p>
                 </div>
               </div>
