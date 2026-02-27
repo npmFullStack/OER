@@ -7,7 +7,7 @@ import { createCanvas } from "canvas";
 // pdfjs-dist is dynamically imported below so the server starts even without it
 
 /**
- * Renders the first page of a PDF to a JPEG cover image.
+ * Renders the first page of a PDF to a JPEG cover image with better quality.
  * Falls back to a styled placeholder if pdfjs-dist is missing or rendering fails.
  */
 export const extractCoverFromPDF = async (pdfPath, outputDir) => {
@@ -37,12 +37,14 @@ export const extractCoverFromPDF = async (pdfPath, outputDir) => {
     }).promise;
 
     const page = await pdf.getPage(1);
+    // Use higher scale for better quality (match client-side: 1.5)
     const SCALE = 1.5;
     const viewport = page.getViewport({ scale: SCALE });
 
     const canvas = createCanvas(viewport.width, viewport.height);
     const ctx = canvas.getContext("2d");
 
+    // Fill with white background first
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -69,7 +71,7 @@ export const extractCoverFromPDF = async (pdfPath, outputDir) => {
       background: "white",
     }).promise;
 
-    coverBuffer = canvas.toBuffer("image/jpeg");
+    coverBuffer = canvas.toBuffer("image/jpeg", { quality: 85 });
     console.log("✅ PDF first page rendered for:", filename);
   } catch (err) {
     console.warn("⚠️  PDF rendering failed, using placeholder:", err.message);
@@ -81,64 +83,79 @@ export const extractCoverFromPDF = async (pdfPath, outputDir) => {
     const canvas = createCanvas(400, 560);
     const ctx = canvas.getContext("2d");
 
+    // Create a more professional gradient
     const gradient = ctx.createLinearGradient(0, 0, 400, 560);
     gradient.addColorStop(0, "#1e3a5f");
     gradient.addColorStop(1, "#2563eb");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 400, 560);
 
-    // Subtle circle pattern
-    ctx.strokeStyle = "rgba(255,255,255,0.08)";
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 8; i++) {
+    // Subtle pattern
+    ctx.strokeStyle = "rgba(255,255,255,0.1)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
       ctx.beginPath();
-      ctx.arc(200, 280, 60 + i * 35, 0, Math.PI * 2);
+      ctx.arc(200, 280, 40 + i * 35, 0, Math.PI * 2);
       ctx.stroke();
     }
 
-    // Book icon area
-    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    // Book icon
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
     ctx.beginPath();
-    ctx.roundRect(150, 160, 100, 130, 8);
+    ctx.rect(160, 170, 80, 100);
     ctx.fill();
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 38px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("📄", 200, 248);
+    // Book spine
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillRect(150, 170, 10, 100);
 
-    // Title text
-    ctx.font = "bold 22px sans-serif";
+    // PDF icon text
     ctx.fillStyle = "#ffffff";
-    const displayTitle = filename.replace(/[-_]/g, " ");
+    ctx.font = "bold 40px 'Arial', sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("PDF", 200, 240);
+
+    // Title text (truncated)
+    ctx.font = "bold 18px 'Arial', sans-serif";
+    ctx.fillStyle = "#ffffff";
+    const displayTitle = filename.replace(/[-_]/g, " ").substring(0, 30).trim();
+
+    // Wrap text
     const words = displayTitle.split(" ");
     let line = "";
-    let y = 330;
+    let y = 310;
     for (const word of words) {
-      const test = line + word + " ";
-      if (ctx.measureText(test).width > 340 && line) {
+      const testLine = line + word + " ";
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > 300 && line.length > 0) {
         ctx.fillText(line.trim(), 200, y);
         line = word + " ";
-        y += 32;
-        if (y > 420) break;
+        y += 25;
+        if (y > 380) break;
       } else {
-        line = test;
+        line = testLine;
       }
     }
-    if (line.trim()) ctx.fillText(line.trim(), 200, y);
+    if (line.trim() && y <= 380) {
+      ctx.fillText(line.trim(), 200, y);
+    }
 
     // Footer
-    ctx.font = "14px sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.6)";
-    ctx.fillText("OCC Digital Library", 200, 520);
+    ctx.font = "12px 'Arial', sans-serif";
+    ctx.fillStyle = "rgba(255,255,255,0.7)";
+    ctx.fillText("OCC Digital Library", 200, 500);
 
-    coverBuffer = canvas.toBuffer("image/jpeg");
+    coverBuffer = canvas.toBuffer("image/jpeg", { quality: 85 });
   }
 
-  // ── Save with sharp ─────────────────────────────────────────────────────
+  // ── Save with sharp - use dimensions that match client-side preview ─────
   await sharp(coverBuffer)
-    .resize(300, 420, { fit: "cover", position: "top" })
-    .jpeg({ quality: 88 })
+    .resize(300, 420, {
+      fit: "cover",
+      position: "top",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 88, mozjpeg: true })
     .toFile(outputPath);
 
   console.log("✅ Cover saved:", outputFilename);

@@ -43,11 +43,28 @@ const getCourseBadgeColor = (courseCode) => {
   }
 };
 
-// Separate component so each card has its own imgError state
 const FeaturedBookCard = ({ book, onClick }) => {
   const [imgError, setImgError] = React.useState(false);
-  // cover_url is already absolute (normalized by ebookService)
-  const showCover = book.cover_url && !imgError;
+  const [imgLoading, setImgLoading] = React.useState(true);
+
+  // Construct the full URL if needed
+  const getCoverUrl = () => {
+    if (!book.cover_url) return null;
+
+    // If it's already a full URL, use it
+    if (book.cover_url.startsWith("http")) {
+      return book.cover_url;
+    }
+
+    // Otherwise, construct from base URL
+    const baseUrl =
+      import.meta.env.VITE_API_URL?.replace("/api", "") ||
+      "http://localhost:5000";
+    return `${baseUrl}${book.cover_url}`;
+  };
+
+  const coverUrl = getCoverUrl();
+  const showCover = coverUrl && !imgError;
 
   return (
     <div
@@ -60,19 +77,37 @@ const FeaturedBookCard = ({ book, onClick }) => {
         className="relative w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200"
         style={{ height: "280px" }}
       >
+        {imgLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
+
         {showCover ? (
           <img
-            src={book.cover_url}
+            src={coverUrl}
             alt={book.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={() => setImgError(true)}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+              imgLoading ? "opacity-0" : "opacity-100"
+            }`}
+            onLoad={() => setImgLoading(false)}
+            onError={(e) => {
+              console.error("Image failed to load:", coverUrl);
+              setImgError(true);
+              setImgLoading(false);
+            }}
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
-            <BookOpen className="w-12 h-12 text-slate-300" />
-            <p className="text-xs text-slate-400 text-center line-clamp-4 font-medium leading-tight">
+            <BookOpen className="w-12 h-12 text-slate-400" />
+            <p className="text-xs text-slate-500 text-center line-clamp-4 font-medium leading-tight">
               {book.title}
             </p>
+            {!imgLoading && (
+              <p className="text-[10px] text-slate-400 mt-1">
+                Cover unavailable
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -115,8 +150,19 @@ const Home = () => {
     const fetchFeatured = async () => {
       try {
         const data = await ebookService.getEbooks();
-        // ebookService.getEbooks() now returns { ...raw, data: normalizedBooks }
+        console.log("Raw ebook data:", data); // Debug log
+
         const books = Array.isArray(data) ? data : data.data || [];
+        console.log(
+          "Books with URLs:",
+          books.map((b) => ({
+            id: b.id,
+            title: b.title,
+            cover_url: b.cover_url,
+            cover_image_path: b.cover_image_path,
+          })),
+        );
+
         const top3 = [...books]
           .sort((a, b) => (b.downloads || 0) - (a.downloads || 0))
           .slice(0, 3);

@@ -2,39 +2,70 @@
 import api from "./api";
 
 const BASE_URL =
-  import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5000";
+  import.meta.env.VITE_API_URL?.replace("/api", "") ||
+  "http://192.168.254.106:5000";
 
-// Helper to normalize ebook URLs so cover_url and file_url are always absolute
-const normalizeEbook = (ebook) => ({
-  ...ebook,
-  cover_url: ebook.cover_url
-    ? ebook.cover_url.startsWith("http")
-      ? ebook.cover_url
-      : `${BASE_URL}${ebook.cover_url}`
-    : null,
-  file_url: ebook.file_url
-    ? ebook.file_url.startsWith("http")
-      ? ebook.file_url
-      : `${BASE_URL}${ebook.file_url}`
-    : null,
-});
+// Helper to normalize ebook URLs
+const normalizeEbook = (ebook) => {
+  if (!ebook) return ebook;
+
+  // Extract filename from path
+  const getFilename = (path) => {
+    if (!path) return null;
+    return path.split("/").pop() || path.split("\\").pop();
+  };
+
+  return {
+    ...ebook,
+    id: ebook.id,
+    title: ebook.title,
+    course: ebook.course,
+    year_level: ebook.year_level,
+    downloads: ebook.downloads || 0,
+    // Construct proper URLs
+    cover_url: ebook.cover_image_path
+      ? `${BASE_URL}/uploads/covers/${getFilename(ebook.cover_image_path)}`
+      : null,
+    file_url: ebook.file_path
+      ? `${BASE_URL}/uploads/ebooks/${getFilename(ebook.file_path)}`
+      : null,
+    uploader_name: ebook.uploader_name,
+    created_at: ebook.created_at,
+  };
+};
 
 const normalizeResponse = (data) => {
-  const books = Array.isArray(data) ? data : data.data || [];
-  return Array.isArray(books)
-    ? books.map(normalizeEbook)
-    : normalizeEbook(books);
+  if (!data) return data;
+
+  if (Array.isArray(data)) {
+    return data.map(normalizeEbook);
+  }
+
+  if (data.data && Array.isArray(data.data)) {
+    return {
+      ...data,
+      data: data.data.map(normalizeEbook),
+    };
+  }
+
+  if (data.data && typeof data.data === "object") {
+    return {
+      ...data,
+      data: normalizeEbook(data.data),
+    };
+  }
+
+  return data;
 };
 
 export const ebookService = {
-  // Upload ebook
   uploadEbook: async (formData) => {
     const response = await api.post("/ebooks/upload", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
     });
-    // Normalize the returned ebook inside response.data.data.ebook
+
     const data = response.data;
     if (data?.data?.ebook) {
       data.data.ebook = normalizeEbook(data.data.ebook);
@@ -42,38 +73,21 @@ export const ebookService = {
     return data;
   },
 
-  // Get all ebooks
   getEbooks: async () => {
     const response = await api.get("/ebooks");
-    const raw = response.data;
-    // Return same shape but with normalized URLs
-    return {
-      ...raw,
-      data: normalizeResponse(raw),
-    };
+    return normalizeResponse(response.data);
   },
 
-  // Get user's ebooks
   getMyEbooks: async () => {
     const response = await api.get("/ebooks/my-ebooks");
-    const raw = response.data;
-    return {
-      ...raw,
-      data: normalizeResponse(raw),
-    };
+    return normalizeResponse(response.data);
   },
 
-  // Get single ebook
   getEbook: async (id) => {
     const response = await api.get(`/ebooks/${id}`);
-    const raw = response.data;
-    return {
-      ...raw,
-      data: raw.data ? normalizeEbook(raw.data) : null,
-    };
+    return normalizeResponse(response.data);
   },
 
-  // Download ebook
   downloadEbook: async (id) => {
     const response = await api.get(`/ebooks/${id}/download`, {
       responseType: "blob",
@@ -81,7 +95,6 @@ export const ebookService = {
     return response.data;
   },
 
-  // Delete ebook
   deleteEbook: async (id) => {
     const response = await api.delete(`/ebooks/${id}`);
     return response.data;

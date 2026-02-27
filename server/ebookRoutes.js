@@ -14,33 +14,77 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, "../uploads");
+// IMPORTANT: Define uploads directory relative to server.js location
+// Since this file is in server/routes/, we need to go up one level to server/
+const serverDir = path.join(__dirname, "..");
+const uploadsDir = path.join(serverDir, "uploads");
 const ebooksDir = path.join(uploadsDir, "ebooks");
 const coversDir = path.join(uploadsDir, "covers");
 
-[uploadsDir, ebooksDir, coversDir].forEach((dir) => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+console.log("🔧 Server directory:", serverDir);
+console.log("📁 Uploads directory should be:", uploadsDir);
 
-// Configure multer for file upload
+// Create directories if they don't exist
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log("✅ Created uploads directory:", uploadsDir);
+  }
+
+  if (!fs.existsSync(ebooksDir)) {
+    fs.mkdirSync(ebooksDir, { recursive: true });
+    console.log("✅ Created ebooks directory:", ebooksDir);
+  }
+
+  if (!fs.existsSync(coversDir)) {
+    fs.mkdirSync(coversDir, { recursive: true });
+    console.log("✅ Created covers directory:", coversDir);
+  }
+} catch (error) {
+  console.error("❌ Error creating directories:", error);
+}
+
+// Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, ebooksDir);
+    if (file.fieldname === "ebook") {
+      cb(null, ebooksDir);
+    } else if (file.fieldname === "cover") {
+      // For cover, save directly to covers directory
+      cb(null, coversDir);
+    } else {
+      cb(new Error("Invalid field name"), null);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    if (file.fieldname === "ebook") {
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    } else if (file.fieldname === "cover") {
+      cb(null, "cover-" + uniqueSuffix + ".jpg");
+    } else {
+      cb(new Error("Invalid field name"), null);
+    }
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  if (file.mimetype === "application/pdf") {
-    cb(null, true);
+  console.log("📄 Processing file:", file.fieldname, file.mimetype);
+
+  if (file.fieldname === "ebook") {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF files are allowed"), false);
+    }
+  } else if (file.fieldname === "cover") {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed for cover"), false);
+    }
   } else {
-    cb(new Error("Only PDF files are allowed"), false);
+    cb(new Error("Unexpected field"), false);
   }
 };
 
@@ -53,14 +97,41 @@ const upload = multer({
 });
 
 // Helper to build URL fields from DB row
-const withUrls = (ebook) => ({
-  ...ebook,
-  file_url: ebook.file_path
-    ? `/uploads/ebooks/${path.basename(ebook.file_path)}`
-    : null,
-  cover_url: ebook.cover_image_path
-    ? `/uploads/covers/${path.basename(ebook.cover_image_path)}`
-    : null,
+const withUrls = (ebook) => {
+  const getFilename = (fullPath) => {
+    if (!fullPath) return null;
+    return fullPath.split("/").pop() || fullPath.split("\\").pop();
+  };
+
+  return {
+    ...ebook,
+    file_url: ebook.file_path
+      ? `/uploads/ebooks/${getFilename(ebook.file_path)}`
+      : null,
+    cover_url: ebook.cover_image_path
+      ? `/uploads/covers/${getFilename(ebook.cover_image_path)}`
+      : null,
+  };
+};
+
+// Debug endpoint to check directories
+router.get("/debug", (req, res) => {
+  const debug = {
+    serverDir,
+    uploadsDir,
+    ebooksDir,
+    coversDir,
+    directories: {
+      uploadsExists: fs.existsSync(uploadsDir),
+      ebooksExists: fs.existsSync(ebooksDir),
+      coversExists: fs.existsSync(coversDir),
+    },
+    files: {
+      ebooks: fs.existsSync(ebooksDir) ? fs.readdirSync(ebooksDir) : [],
+      covers: fs.existsSync(coversDir) ? fs.readdirSync(coversDir) : [],
+    },
+  };
+  res.json(debug);
 });
 
 // ─────────────────────────────────────────────
@@ -91,66 +162,99 @@ router.get("/", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// PROTECTED ROUTES  (must come before /:id)
+// PROTECTED ROUTES
 // ─────────────────────────────────────────────
 
 // Upload ebook (PROTECTED)
 router.post(
   "/upload",
   authenticateToken,
-  upload.single("ebook"),
+  upload.fields([
+    { name: "ebook", maxCount: 1 },
+    { name: "cover", maxCount: 1 },
+  ]),
   async (req, res) => {
-    let coverImagePath = null;
+    console.log("📤 Upload request received");
+    console.log("📝 Body:", req.body);
+    console.log("📁 Files:", req.files ? Object.keys(req.files) : "No files");
 
     try {
-      if (!req.file) {
+      // Check if ebook file exists
+      if (
+        !req.files ||
+        !req.files["ebook"] ||
+        req.files["ebook"].length === 0
+      ) {
         return res
           .status(400)
           .json(createResponse(false, "Please upload a PDF file"));
       }
 
+      const ebookFile = req.files["ebook"][0];
       const { title, course, yearLevel } = req.body;
 
       if (!title || !course || !yearLevel) {
-        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        // Clean up uploaded PDF
+        if (fs.existsSync(ebookFile.path)) {
+          fs.unlinkSync(ebookFile.path);
+          console.log("🗑️ Deleted PDF due to validation failure");
+        }
         return res
           .status(400)
           .json(createResponse(false, "Please fill in all required fields"));
       }
 
-      // Extract cover image from PDF (non-critical)
-      try {
-        coverImagePath = await extractCoverFromPDF(req.file.path, coversDir);
-        if (coverImagePath)
-          console.log("Cover extracted successfully:", coverImagePath);
-      } catch (coverError) {
-        console.error("Cover extraction failed (non-critical):", coverError);
+      console.log("✅ PDF saved at:", ebookFile.path);
+      console.log("📊 PDF size:", ebookFile.size, "bytes");
+
+      let coverImagePath = null;
+
+      // Handle cover image if provided
+      if (req.files["cover"] && req.files["cover"].length > 0) {
+        const coverFile = req.files["cover"][0];
+        coverImagePath = coverFile.path;
+        console.log("✅ Cover image saved:", coverImagePath);
+      } else {
+        // Extract cover from PDF
+        console.log("🔄 Extracting cover from PDF...");
+        try {
+          coverImagePath = await extractCoverFromPDF(ebookFile.path, coversDir);
+          if (coverImagePath) {
+            console.log("✅ Cover extracted from PDF:", coverImagePath);
+          }
+        } catch (coverError) {
+          console.error("❌ Cover extraction failed:", coverError);
+        }
       }
 
+      // Insert into database
+      console.log("💾 Inserting into database...");
       const [result] = await pool.query(
         `INSERT INTO ebooks 
-         (title, course, year_level, file_name, file_path, file_size, cover_image_path, uploaded_by) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (title, course, year_level, file_name, file_path, file_size, cover_image_path, uploaded_by) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           title,
           course,
           yearLevel,
-          req.file.originalname,
-          req.file.path,
-          req.file.size,
+          ebookFile.originalname,
+          ebookFile.path,
+          ebookFile.size,
           coverImagePath,
           req.user.id,
         ],
       );
 
+      // Fetch the created ebook
       const [ebooks] = await pool.query(
-        `SELECT e.*, 
-         CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
-         FROM ebooks e 
-         JOIN users u ON e.uploaded_by = u.id 
-         WHERE e.id = ?`,
+        `SELECT e.*, CONCAT(u.firstname, ' ', u.lastname) as uploader_name 
+       FROM ebooks e 
+       JOIN users u ON e.uploaded_by = u.id 
+       WHERE e.id = ?`,
         [result.insertId],
       );
+
+      console.log("✅ Upload complete for:", title);
 
       res.status(201).json(
         createResponse(true, "eBook uploaded successfully", {
@@ -158,23 +262,30 @@ router.post(
         }),
       );
     } catch (error) {
-      console.error("Upload error:", error);
-      if (req.file && fs.existsSync(req.file.path)) {
+      console.error("❌ Upload error:", error);
+
+      // Clean up files on error
+      if (req.files && req.files["ebook"] && req.files["ebook"][0]) {
         try {
-          fs.unlinkSync(req.file.path);
-        } catch {}
+          fs.unlinkSync(req.files["ebook"][0].path);
+        } catch (e) {}
       }
-      if (coverImagePath && fs.existsSync(coverImagePath)) {
+      if (req.files && req.files["cover"] && req.files["cover"][0]) {
         try {
-          fs.unlinkSync(coverImagePath);
-        } catch {}
+          fs.unlinkSync(req.files["cover"][0].path);
+        } catch (e) {}
       }
-      res.status(500).json(createResponse(false, "Server error during upload"));
+
+      res
+        .status(500)
+        .json(
+          createResponse(false, "Server error during upload: " + error.message),
+        );
     }
   },
 );
 
-// Get user's own ebooks (PROTECTED) — MUST be before /:id
+// Get user's own ebooks (PROTECTED)
 router.get("/my-ebooks", authenticateToken, async (req, res) => {
   try {
     const [ebooks] = await pool.query(
@@ -195,7 +306,7 @@ router.get("/my-ebooks", authenticateToken, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// PARAM ROUTES  (wildcards last)
+// PARAM ROUTES
 // ─────────────────────────────────────────────
 
 // Get single ebook (PUBLIC)
@@ -267,9 +378,14 @@ router.delete("/:id", authenticateToken, async (req, res) => {
 
     const ebook = ebooks[0];
 
-    if (fs.existsSync(ebook.file_path)) fs.unlinkSync(ebook.file_path);
+    if (fs.existsSync(ebook.file_path)) {
+      fs.unlinkSync(ebook.file_path);
+      console.log("🗑️ Deleted PDF:", ebook.file_path);
+    }
+
     if (ebook.cover_image_path && fs.existsSync(ebook.cover_image_path)) {
       fs.unlinkSync(ebook.cover_image_path);
+      console.log("🗑️ Deleted cover:", ebook.cover_image_path);
     }
 
     await pool.query("DELETE FROM ebooks WHERE id = ?", [req.params.id]);

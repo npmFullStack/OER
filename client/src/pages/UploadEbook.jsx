@@ -126,6 +126,24 @@ const UploadEbook = () => {
     setExtractingCover(false);
   };
 
+  // Helper function to convert dataURL to Blob
+  const dataURLtoBlob = (dataURL) => {
+    try {
+      const arr = dataURL.split(",");
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+    } catch (error) {
+      console.error("Error converting dataURL to blob:", error);
+      return null;
+    }
+  };
+
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     setFileError("");
@@ -194,6 +212,20 @@ const UploadEbook = () => {
     uploadData.append("title", formData.title);
     uploadData.append("course", formData.course);
     uploadData.append("yearLevel", formData.yearLevel);
+
+    // If we have a cover preview, send it to the server
+    if (coverPreview) {
+      try {
+        // Convert dataURL to blob
+        const response = await fetch(coverPreview);
+        const blob = await response.blob();
+        const coverFile = new File([blob], "cover.jpg", { type: "image/jpeg" });
+        uploadData.append("cover", coverFile);
+        console.log("✅ Cover image attached to upload", coverFile);
+      } catch (err) {
+        console.error("Failed to process cover image:", err);
+      }
+    }
 
     const loadingToast = toast.loading("Uploading eBook...");
 
@@ -330,7 +362,7 @@ const UploadEbook = () => {
                           Cover page detected
                         </p>
                         <p className="text-xs text-gray-500 truncate">
-                          The first page will be used as your eBook cover
+                          This image will be used as your eBook cover
                         </p>
                       </div>
                       <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
@@ -491,8 +523,7 @@ const UploadEbook = () => {
                     Cover Page Detection
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    The first page of your PDF will automatically become the
-                    eBook cover
+                    The first page of your PDF will be extracted as the cover
                   </p>
                 </div>
               </div>
@@ -545,7 +576,9 @@ const UploadEbook = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-600">•</span>
-                  <span>Ensure book title matches the cover page</span>
+                  <span>
+                    The preview shows exactly how your cover will look
+                  </span>
                 </li>
               </ul>
             </div>
