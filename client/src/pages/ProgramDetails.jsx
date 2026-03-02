@@ -1,5 +1,5 @@
 // src/pages/ProgramDetails.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -7,13 +7,11 @@ import {
   Trash2,
   BookOpen,
   Download,
-  Users,
   Calendar,
   GraduationCap,
   AlertCircle,
   Eye,
-  FileText,
-  LayoutGrid,
+  MoreVertical,
 } from "lucide-react";
 import programService from "@/services/programService";
 import { ebookService } from "@/services/ebookService";
@@ -48,11 +46,23 @@ const ProgramDetails = () => {
   const [ebooks, setEbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     fetchProgramDetails();
   }, [id]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowActionMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchProgramDetails = async () => {
     try {
@@ -83,10 +93,12 @@ const ProgramDetails = () => {
   };
 
   const handleEdit = () => {
+    setShowActionMenu(false);
     navigate(`/programs/edit/${id}`);
   };
 
   const handleDelete = async () => {
+    setShowActionMenu(false);
     if (
       !window.confirm(
         `Are you sure you want to delete "${program?.name}"? This action cannot be undone.`,
@@ -166,6 +178,15 @@ const ProgramDetails = () => {
       {/* Main content */}
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4 max-w-7xl">
+          {/* Back button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+
           {/* Breadcrumbs */}
           <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
             <Link
@@ -176,7 +197,7 @@ const ProgramDetails = () => {
             </Link>
             <span>/</span>
             <span className="text-gray-900 font-medium">
-              {loading ? "Loading..." : program?.name}
+              {loading ? "Loading..." : program?.acronym || program?.name}
             </span>
           </nav>
 
@@ -237,22 +258,35 @@ const ProgramDetails = () => {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2">
+                  {/* Action Button Menu */}
+                  <div className="relative" ref={menuRef}>
                     <button
-                      onClick={handleEdit}
-                      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                      onClick={() => setShowActionMenu(!showActionMenu)}
+                      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
                     >
-                      <Edit2 className="w-5 h-5" />
-                      <span>Edit</span>
+                      <span>Actions</span>
+                      <MoreVertical className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={handleDelete}
-                      className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                      <span>Delete</span>
-                    </button>
+
+                    {/* Dropdown Menu */}
+                    {showActionMenu && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                        <button
+                          onClick={handleEdit}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          Edit Program
+                        </button>
+                        <button
+                          onClick={handleDelete}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete Program
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

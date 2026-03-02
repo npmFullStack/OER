@@ -233,25 +233,6 @@ const EbookDetails = () => {
                       <span>{formatFileSize(book.file_size)}</span>
                     </div>
                   )}
-                  {book.uploader_name && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <User className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span>Uploaded by {book.uploader_name}</span>
-                    </div>
-                  )}
-                  {book.created_at && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                      <span>
-                        Added{" "}
-                        {new Date(book.created_at).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Action buttons */}

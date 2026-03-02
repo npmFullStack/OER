@@ -10,15 +10,113 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  BookOpen,
+  MoreVertical,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import programService from "@/services/programService";
+
+// Convert hex color to a very light tint for card background
+const hexToLightBg = (hex) => {
+  try {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, 0.08)`;
+  } catch {
+    return "rgba(59,130,246,0.08)";
+  }
+};
+
+const ProgramCard = ({ program, onEdit, onDelete }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const color = program.color || "#3b82f6";
+  const lightBg = hexToLightBg(color);
+
+  return (
+    <div
+      className="group rounded-xl overflow-hidden hover:shadow-md transition-all duration-300 border border-transparent hover:border-gray-200 flex relative"
+      style={{ backgroundColor: lightBg }}
+    >
+      {/* Left color bar */}
+      <div
+        className="w-1 flex-shrink-0 rounded-l-xl"
+        style={{ backgroundColor: color }}
+      />
+
+      {/* Card content - clickable to program details */}
+      <Link
+        to={`/program/${program.id}`}
+        className="flex items-center gap-4 p-4 flex-1 min-w-0"
+      >
+        <div style={{ color }}>
+          <GraduationCap className="w-6 h-6 flex-shrink-0" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-gray-900 text-sm mb-0.5">
+            {program.acronym}
+          </h3>
+          <p className="text-xs text-gray-500 truncate">{program.name}</p>
+          <p
+            className="text-xs mt-1 font-medium flex items-center gap-1"
+            style={{ color }}
+          >
+            <BookOpen className="w-3 h-3" />
+            {program.total_ebooks || 0} eBooks
+          </p>
+        </div>
+      </Link>
+
+      {/* Action Menu */}
+      <div className="relative flex items-center pr-2">
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          className="p-2 hover:bg-black/5 rounded-lg transition-colors"
+        >
+          <MoreVertical className="w-4 h-4 text-gray-600" />
+        </button>
+
+        {/* Dropdown Menu */}
+        {showMenu && (
+          <>
+            <div
+              className="fixed inset-0 z-10"
+              onClick={() => setShowMenu(false)}
+            />
+            <div className="absolute right-2 top-12 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px]">
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  onEdit(program.id);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+              >
+                <Edit2 className="w-4 h-4" />
+                Edit
+              </button>
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  onDelete(program.id, program.name);
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const Programs = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(12);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,11 +127,18 @@ const Programs = () => {
   const fetchPrograms = async () => {
     try {
       setLoading(true);
-      const response = await programService.getAll();
+      // Try to get programs with ebook counts first
+      const response = await programService.getWithEbookCounts();
       if (response.success) {
         setPrograms(response.data || []);
       } else {
-        toast.error(response.message || "Failed to load programs");
+        // Fallback to regular getAll
+        const fallbackResponse = await programService.getAll();
+        if (fallbackResponse.success) {
+          setPrograms(fallbackResponse.data || []);
+        } else {
+          toast.error("Failed to load programs");
+        }
       }
     } catch (error) {
       console.error("Error fetching programs:", error);
@@ -81,15 +186,6 @@ const Programs = () => {
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
   return (
     <div className="bg-white rounded-xl p-6">
       {/* Header */}
@@ -126,7 +222,7 @@ const Programs = () => {
         </div>
       </div>
 
-      {/* Programs List */}
+      {/* Programs Grid */}
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -165,121 +261,15 @@ const Programs = () => {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Program
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acronym
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Color
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total eBooks
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date Added
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {currentItems.map((program) => (
-                  <tr key={program.id} className="hover:bg-gray-50 group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <Link
-                          to={`/program/${program.id}`}
-                          className="flex items-center gap-3 flex-1"
-                        >
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold"
-                            style={{ backgroundColor: program.color }}
-                          >
-                            {program.acronym?.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                                {program.name}
-                              </p>
-                              <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              Created by: {program.created_by_name}
-                            </p>
-                          </div>
-                        </Link>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link
-                        to={`/program/${program.id}`}
-                        className="font-mono text-sm font-medium text-gray-900 hover:text-blue-600 transition-colors"
-                      >
-                        {program.acronym}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link
-                        to={`/program/${program.id}`}
-                        className="flex items-center gap-2"
-                      >
-                        <div
-                          className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
-                          style={{ backgroundColor: program.color }}
-                        />
-                        <span className="text-sm text-gray-600 font-mono hover:text-blue-600 transition-colors">
-                          {program.color}
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link
-                        to={`/program/${program.id}`}
-                        className="inline-block"
-                      >
-                        <span className="px-2 py-1 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                          {program.total_ebooks || 0} eBooks
-                        </span>
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Link
-                        to={`/program/${program.id}`}
-                        className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
-                      >
-                        {formatDate(program.created_at)}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(program.id)}
-                          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Edit program"
-                        >
-                          <Edit2 className="w-5 h-5 text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(program.id, program.name)}
-                          className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete program"
-                        >
-                          <Trash2 className="w-5 h-5 text-red-600" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {currentItems.map((program) => (
+              <ProgramCard
+                key={program.id}
+                program={program}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
           </div>
 
           {/* Pagination */}
