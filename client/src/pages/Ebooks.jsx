@@ -9,15 +9,17 @@ import {
   Trash2,
   Eye,
   Calendar,
-  Layers,
   ChevronLeft,
   ChevronRight,
   FileText,
   Clock,
   AlertCircle,
   Upload,
+  GraduationCap,
+  X,
 } from "lucide-react";
 import { ebookService } from "@/services/ebookService";
+import programService from "@/services/programService";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 
@@ -29,24 +31,18 @@ const Ebooks = () => {
   const [filteredEbooks, setFilteredEbooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedProgram, setSelectedProgram] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedEbook, setSelectedEbook] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [programs, setPrograms] = useState([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Track image loading states for each ebook
+  const [imageStates, setImageStates] = useState({});
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // Course options
-  const courses = [
-    { value: "BSIT", label: "Information Technology" },
-    { value: "BSBA-FM", label: "Financial Management" },
-    { value: "BSBA-MM", label: "Marketing Management" },
-    { value: "BEED", label: "Elementary Education" },
-    { value: "BSED", label: "Secondary Education" },
-  ];
 
   // Year levels
   const yearLevels = [
@@ -57,26 +53,66 @@ const Ebooks = () => {
   ];
 
   useEffect(() => {
+    fetchPrograms();
     fetchEbooks();
   }, []);
 
   useEffect(() => {
     filterEbooks();
-  }, [searchTerm, selectedCourse, selectedYear, ebooks]);
+  }, [searchTerm, selectedProgram, selectedYear, ebooks]);
+
+  const fetchPrograms = async () => {
+    try {
+      setLoadingPrograms(true);
+      const response = await programService.getAll();
+      if (response.success) {
+        setPrograms(response.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
 
   const fetchEbooks = async () => {
     try {
       setLoading(true);
       const response = await ebookService.getMyEbooks();
-      if (response.success) {
-        setEbooks(response.data);
-        setFilteredEbooks(response.data);
+      console.log("Ebooks response:", response);
+
+      if (response && response.success) {
+        setEbooks(response.data || []);
+        setFilteredEbooks(response.data || []);
+
+        // Initialize image states for all ebooks
+        const initialImageStates = {};
+        response.data.forEach((ebook) => {
+          initialImageStates[ebook.id] = {
+            loading: true,
+            error: false,
+          };
+        });
+        setImageStates(initialImageStates);
       } else {
-        toast.error(response.message || "Failed to fetch ebooks");
+        toast.error(response?.message || "Failed to fetch ebooks");
       }
     } catch (error) {
-      toast.error("Error loading ebooks");
-      console.error("Fetch ebooks error:", error);
+      console.error("Fetch ebooks error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+
+      if (error.response?.status === 404) {
+        toast.error(
+          "eBooks endpoint not found. Please check server configuration.",
+        );
+      } else if (error.response?.status === 401) {
+        toast.error("Please login to view your eBooks");
+      } else {
+        toast.error("Error loading ebooks. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -88,18 +124,22 @@ const Ebooks = () => {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter((ebook) =>
-        ebook.title.toLowerCase().includes(searchTerm.toLowerCase()),
+        ebook.title?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
-    // Course filter
-    if (selectedCourse) {
-      filtered = filtered.filter((ebook) => ebook.course === selectedCourse);
+    // Program filter
+    if (selectedProgram) {
+      filtered = filtered.filter(
+        (ebook) => String(ebook.program_id) === String(selectedProgram),
+      );
     }
 
     // Year level filter
     if (selectedYear) {
-      filtered = filtered.filter((ebook) => ebook.year_level === selectedYear);
+      filtered = filtered.filter(
+        (ebook) => String(ebook.year_level) === String(selectedYear),
+      );
     }
 
     setFilteredEbooks(filtered);
@@ -108,11 +148,40 @@ const Ebooks = () => {
 
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedCourse("");
+    setSelectedProgram("");
     setSelectedYear("");
   };
 
-  const truncateFileName = (name, maxLength = 25) => {
+  const activeFilterCount = [searchTerm, selectedProgram, selectedYear].filter(
+    Boolean,
+  ).length;
+
+  const getCoverUrl = (ebook) => {
+    if (!ebook.cover_url) return null;
+    if (ebook.cover_url.startsWith("http")) {
+      return ebook.cover_url;
+    }
+    const baseUrl =
+      import.meta.env.VITE_API_URL?.replace("/api", "") ||
+      "http://192.168.254.106:5000";
+    return `${baseUrl}${ebook.cover_url}`;
+  };
+
+  const handleImageLoad = (ebookId) => {
+    setImageStates((prev) => ({
+      ...prev,
+      [ebookId]: { ...prev[ebookId], loading: false, error: false },
+    }));
+  };
+
+  const handleImageError = (ebookId) => {
+    setImageStates((prev) => ({
+      ...prev,
+      [ebookId]: { ...prev[ebookId], loading: false, error: true },
+    }));
+  };
+
+  const truncateFileName = (name, maxLength = 20) => {
     if (!name) return "";
     if (name.length <= maxLength) return name;
     const extension = name.split(".").pop();
@@ -124,72 +193,14 @@ const Ebooks = () => {
     return `${truncatedName}...${extension}`;
   };
 
-  const handleDownload = async (ebook) => {
-    try {
-      const loadingToast = toast.loading("Preparing download...");
-
-      // You can implement actual download here
-      window.open(
-        `http://localhost:5000/api/ebooks/${ebook.id}/download`,
-        "_blank",
-      );
-
-      toast.dismiss(loadingToast);
-      toast.success("Download started");
-    } catch (error) {
-      toast.error("Download failed");
-      console.error("Download error:", error);
-    }
-  };
-
-  const handleDeleteClick = (ebook) => {
-    setSelectedEbook(ebook);
-    setShowDeleteModal(true);
-  };
-
-  const handleDelete = async () => {
-    if (!selectedEbook) return;
-
-    setDeleteLoading(true);
-    const loadingToast = toast.loading("Deleting ebook...");
-
-    try {
-      const response = await ebookService.deleteEbook(selectedEbook.id);
-
-      toast.dismiss(loadingToast);
-
-      if (response.success) {
-        toast.success("eBook deleted successfully");
-        // Remove from list
-        setEbooks(ebooks.filter((e) => e.id !== selectedEbook.id));
-        setShowDeleteModal(false);
-        setSelectedEbook(null);
-      } else {
-        toast.error(response.message || "Failed to delete ebook");
-      }
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      toast.error("Error deleting ebook");
-      console.error("Delete error:", error);
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
-  const handleView = (ebook) => {
-    // Navigate to ebook details page (you can create this later)
-    toast.success("View feature coming soon");
-  };
-
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredEbooks.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredEbooks.length / itemsPerPage);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
   const formatDate = (dateString) => {
+    if (!dateString) return "";
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -198,16 +209,27 @@ const Ebooks = () => {
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 Bytes";
+    if (!bytes || bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getCourseLabel = (courseValue) => {
-    const course = courses.find((c) => c.value === courseValue);
-    return course ? course.label : courseValue;
+  const getProgramLabel = (programId) => {
+    if (!programId) return "N/A";
+    const program = programs.find((p) => String(p.id) === String(programId));
+    return program ? program.acronym || program.name : "Unknown";
+  };
+
+  const getProgramColor = (programId) => {
+    if (!programId) return "#3b82f6";
+    const program = programs.find((p) => String(p.id) === String(programId));
+    return program?.color || "#3b82f6";
+  };
+
+  const handleEbookClick = (ebook) => {
+    navigate(`/ebook-record/${ebook.id}`, { state: { ebook } });
   };
 
   return (
@@ -229,72 +251,100 @@ const Ebooks = () => {
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      {/* Compact Filters Bar */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3 mb-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Search input - smaller */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search by title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
             />
           </div>
 
-          {/* Course filter */}
-          <div className="relative">
-            <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-            >
-              <option value="">All Courses</option>
-              {courses.map((course) => (
-                <option key={course.value} value={course.value}>
-                  {course.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Year filter */}
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-            >
-              <option value="">All Years</option>
-              {yearLevels.map((year) => (
-                <option key={year.value} value={year.value}>
-                  {year.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Clear filters */}
+          {/* Filter Toggle Button - smaller */}
           <button
-            onClick={clearFilters}
-            className="px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center justify-center gap-2"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`px-3 py-1.5 text-sm border rounded-lg flex items-center gap-1.5 transition-colors relative ${
+              showFilters || activeFilterCount > 0
+                ? "border-blue-500 text-blue-600 bg-blue-50"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
           >
-            <Filter className="w-5 h-5" />
-            Clear Filters
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="ml-1 w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
           </button>
+
+          {/* Clear Filters Button - smaller, only shown when filters active */}
+          {activeFilterCount > 0 && (
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors inline-flex items-center gap-1.5"
+            >
+              <X className="w-4 h-4" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
         </div>
 
+        {/* Expandable Filters Panel */}
+        {showFilters && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Program filter */}
+              <div className="relative">
+                <GraduationCap className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <select
+                  value={selectedProgram}
+                  onChange={(e) => setSelectedProgram(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                  disabled={loadingPrograms}
+                >
+                  <option value="">All Programs</option>
+                  {programs.map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.acronym} – {program.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Year filter */}
+              <div className="relative">
+                <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                >
+                  <option value="">All Years</option>
+                  {yearLevels.map((year) => (
+                    <option key={year.value} value={year.value}>
+                      {year.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Results count */}
-        <div className="mt-4 text-sm text-gray-600">
+        <div className="mt-2 text-xs text-gray-500">
           Showing {currentItems.length} of {filteredEbooks.length} eBooks
         </div>
       </div>
 
-      {/* Ebooks List */}
+      {/* Ebooks Grid */}
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8">
           <div className="flex justify-center">
@@ -312,7 +362,7 @@ const Ebooks = () => {
             No eBooks Found
           </h3>
           <p className="text-gray-600 mb-6">
-            {searchTerm || selectedCourse || selectedYear
+            {searchTerm || selectedProgram || selectedYear
               ? "Try adjusting your filters"
               : "Start by uploading your first eBook"}
           </p>
@@ -326,113 +376,96 @@ const Ebooks = () => {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Year Level
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      File Size
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Downloads
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Uploaded
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {currentItems.map((ebook) => (
-                    <tr key={ebook.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3 max-w-xs">
-                          <div className="p-2 bg-blue-600/10 rounded flex-shrink-0">
-                            <FileText className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className="font-medium text-gray-900 truncate"
-                              title={ebook.title}
-                            >
-                              {ebook.title}
-                            </p>
-                            <p
-                              className="text-sm text-gray-500 truncate"
-                              title={ebook.file_name}
-                            >
-                              {truncateFileName(ebook.file_name)}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-900">
-                          {getCourseLabel(ebook.course)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 text-xs font-medium bg-blue-600/10 text-blue-700 rounded-full">
-                          Year {ebook.year_level}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {formatFileSize(ebook.file_size)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Download className="w-4 h-4" />
-                          <span>{ebook.downloads || 0}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Clock className="w-4 h-4" />
-                          <span>{formatDate(ebook.created_at)}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleView(ebook)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="View details"
-                          >
-                            <Eye className="w-5 h-5 text-gray-600" />
-                          </button>
-                          <button
-                            onClick={() => handleDownload(ebook)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Download"
-                          >
-                            <Download className="w-5 h-5 text-gray-600" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(ebook)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-5 h-5 text-red-600" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          {/* Grid View with Images */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {currentItems.map((ebook) => {
+              const coverUrl = getCoverUrl(ebook);
+              const imageState = imageStates[ebook.id] || {
+                loading: true,
+                error: false,
+              };
+
+              return (
+                <div
+                  key={ebook.id}
+                  onClick={() => handleEbookClick(ebook)}
+                  className="group bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden"
+                >
+                  {/* Cover Image */}
+                  <div className="relative w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                    {imageState.loading && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                    {coverUrl && !imageState.error ? (
+                      <img
+                        src={coverUrl}
+                        alt={ebook.title}
+                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
+                          imageState.loading ? "opacity-0" : "opacity-100"
+                        }`}
+                        onLoad={() => handleImageLoad(ebook.id)}
+                        onError={() => handleImageError(ebook.id)}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <FileText className="w-12 h-12 text-gray-400" />
+                      </div>
+                    )}
+
+                    {/* Program Badge */}
+                    <div className="absolute top-2 left-2">
+                      <span
+                        className="text-xs font-medium px-2 py-1 rounded-full shadow-sm"
+                        style={{
+                          backgroundColor: getProgramColor(ebook.program_id),
+                          color: "#fff",
+                        }}
+                      >
+                        {getProgramLabel(ebook.program_id)}
+                      </span>
+                    </div>
+
+                    {/* Year Badge */}
+                    <div className="absolute top-2 right-2">
+                      <span className="text-xs font-medium px-2 py-1 bg-white/90 backdrop-blur-sm text-gray-700 rounded-full shadow-sm">
+                        Year {ebook.year_level}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-3">
+                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
+                      {ebook.title}
+                    </h3>
+
+                    <p
+                      className="text-xs text-gray-500 mb-2 truncate"
+                      title={ebook.file_name}
+                    >
+                      {truncateFileName(ebook.file_name)}
+                    </p>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatDate(ebook.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-500">
+                        <Download className="w-3 h-3" />
+                        <span>{ebook.downloads || 0}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-2 text-xs text-gray-400">
+                      {formatFileSize(ebook.file_size)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Pagination */}
@@ -443,29 +476,40 @@ const Ebooks = () => {
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => paginate(currentPage - 1)}
+                  onClick={() => setCurrentPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (number) => (
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Show pages around current page
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
                     <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`px-4 py-2 border rounded-lg transition-colors ${
-                        currentPage === number
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "border-gray-200 hover:bg-gray-50"
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                        currentPage === pageNum
+                          ? "bg-blue-600 text-white"
+                          : "border border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      {number}
+                      {pageNum}
                     </button>
-                  ),
-                )}
+                  );
+                })}
                 <button
-                  onClick={() => paginate(currentPage + 1)}
+                  onClick={() => setCurrentPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
                   className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -475,54 +519,6 @@ const Ebooks = () => {
             </div>
           )}
         </>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-md w-full mx-4 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-red-100 rounded-full">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Delete eBook
-              </h3>
-            </div>
-
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete "{selectedEbook?.title}"? This
-              action cannot be undone.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteModal(false)}
-                disabled={deleteLoading}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleteLoading}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
-              >
-                {deleteLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Deleting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

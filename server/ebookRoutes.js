@@ -179,7 +179,8 @@ router.get("/debug", (req, res) => {
 });
 
 // =============================================
-// PUBLIC ROUTES
+// PUBLIC ROUTES - ORDER IS CRITICAL!
+// Specific routes MUST come before generic /:id routes
 // =============================================
 
 // Get all ebooks with program details
@@ -210,8 +211,36 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Get single ebook
-router.get("/:id", async (req, res) => {
+// Get user's own ebooks - SPECIFIC ROUTE (must come before /:id)
+router.get("/my-ebooks", authenticateToken, async (req, res) => {
+  try {
+    const [ebooks] = await pool.query(
+      `SELECT e.*, 
+              p.name as program_name,
+              p.acronym as program_acronym,
+              p.color as program_color
+       FROM ebooks e 
+       LEFT JOIN programs p ON e.program_id = p.id
+       WHERE e.uploaded_by = ? 
+       ORDER BY e.created_at DESC`,
+      [req.user.id],
+    );
+
+    res.json(
+      createResponse(
+        true,
+        "Your ebooks retrieved successfully",
+        ebooks.map(withUrls),
+      ),
+    );
+  } catch (error) {
+    console.error("Get my ebooks error:", error);
+    res.status(500).json(createResponse(false, "Server error"));
+  }
+});
+
+// Get ebooks by program - SPECIFIC ROUTE (must come before /:id)
+router.get("/program/:programId", async (req, res) => {
   try {
     const [ebooks] = await pool.query(
       `
@@ -223,25 +252,26 @@ router.get("/:id", async (req, res) => {
       FROM ebooks e 
       JOIN users u ON e.uploaded_by = u.id 
       LEFT JOIN programs p ON e.program_id = p.id
-      WHERE e.id = ?
+      WHERE e.program_id = ?
+      ORDER BY e.created_at DESC
     `,
-      [req.params.id],
+      [req.params.programId],
     );
-
-    if (ebooks.length === 0) {
-      return res.status(404).json(createResponse(false, "eBook not found"));
-    }
 
     res.json(
-      createResponse(true, "eBook retrieved successfully", withUrls(ebooks[0])),
+      createResponse(
+        true,
+        "eBooks retrieved successfully",
+        ebooks.map(withUrls),
+      ),
     );
   } catch (error) {
-    console.error("Get ebook error:", error);
+    console.error("Get ebooks by program error:", error);
     res.status(500).json(createResponse(false, "Server error"));
   }
 });
 
-// Download ebook and increment download count
+// Download ebook and increment download count - SPECIFIC ROUTE (must come before /:id)
 router.get("/:id/download", async (req, res) => {
   try {
     const [ebooks] = await pool.query("SELECT * FROM ebooks WHERE id = ?", [
@@ -274,8 +304,8 @@ router.get("/:id/download", async (req, res) => {
   }
 });
 
-// Get ebooks by program
-router.get("/program/:programId", async (req, res) => {
+// Get single ebook - GENERIC ROUTE (must come LAST)
+router.get("/:id", async (req, res) => {
   try {
     const [ebooks] = await pool.query(
       `
@@ -287,27 +317,26 @@ router.get("/program/:programId", async (req, res) => {
       FROM ebooks e 
       JOIN users u ON e.uploaded_by = u.id 
       LEFT JOIN programs p ON e.program_id = p.id
-      WHERE e.program_id = ?
-      ORDER BY e.created_at DESC
+      WHERE e.id = ?
     `,
-      [req.params.programId],
+      [req.params.id],
     );
 
+    if (ebooks.length === 0) {
+      return res.status(404).json(createResponse(false, "eBook not found"));
+    }
+
     res.json(
-      createResponse(
-        true,
-        "eBooks retrieved successfully",
-        ebooks.map(withUrls),
-      ),
+      createResponse(true, "eBook retrieved successfully", withUrls(ebooks[0])),
     );
   } catch (error) {
-    console.error("Get ebooks by program error:", error);
+    console.error("Get ebook error:", error);
     res.status(500).json(createResponse(false, "Server error"));
   }
 });
 
 // =============================================
-// PROTECTED ROUTES
+// PROTECTED ROUTES (require authentication)
 // =============================================
 
 // Upload ebook
@@ -437,34 +466,6 @@ router.post(
     }
   },
 );
-
-// Get user's own ebooks
-router.get("/my-ebooks", authenticateToken, async (req, res) => {
-  try {
-    const [ebooks] = await pool.query(
-      `SELECT e.*, 
-              p.name as program_name,
-              p.acronym as program_acronym,
-              p.color as program_color
-       FROM ebooks e 
-       LEFT JOIN programs p ON e.program_id = p.id
-       WHERE e.uploaded_by = ? 
-       ORDER BY e.created_at DESC`,
-      [req.user.id],
-    );
-
-    res.json(
-      createResponse(
-        true,
-        "Your ebooks retrieved successfully",
-        ebooks.map(withUrls),
-      ),
-    );
-  } catch (error) {
-    console.error("Get my ebooks error:", error);
-    res.status(500).json(createResponse(false, "Server error"));
-  }
-});
 
 // Delete ebook
 router.delete("/:id", authenticateToken, async (req, res) => {
