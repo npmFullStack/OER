@@ -250,10 +250,6 @@ const ProgramDetails = () => {
                         <span className="font-mono text-sm font-medium text-gray-500">
                           {program.acronym}
                         </span>
-                        <span className="text-gray-300">•</span>
-                        <span className="text-sm text-gray-500">
-                          Created by {program.created_by_name}
-                        </span>
                       </div>
                     </div>
                   </div>
@@ -360,10 +356,10 @@ const ProgramDetails = () => {
                         key={ebook.id}
                         className="group border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300"
                       >
-                        {/* eBook Cover */}
-                        <Link
-                          to={`/ebook/${ebook.id}`}
-                          className="block aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden"
+                        {/* eBook Cover - Updated to navigate to EbookRecord */}
+                        <div
+                          onClick={() => navigate(`/ebook-record/${ebook.id}`)}
+                          className="block aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden cursor-pointer"
                         >
                           {ebook.cover_url ? (
                             <img
@@ -392,18 +388,20 @@ const ProgramDetails = () => {
                               {yearSuffix(ebook.year_level)}
                             </span>
                           )}
-                        </Link>
+                        </div>
 
-                        {/* eBook Info */}
+                        {/* eBook Info - Updated title link to navigate to EbookRecord */}
                         <div className="p-4">
-                          <Link
-                            to={`/ebook/${ebook.id}`}
-                            className="block group-hover:text-blue-600 transition-colors"
+                          <div
+                            onClick={() =>
+                              navigate(`/ebook-record/${ebook.id}`)
+                            }
+                            className="cursor-pointer group-hover:text-blue-600 transition-colors"
                           >
                             <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">
                               {ebook.title}
                             </h3>
-                          </Link>
+                          </div>
 
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-1 text-sm text-gray-500">

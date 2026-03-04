@@ -329,12 +329,6 @@ const EbookRecord = () => {
                         <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:w-2/3">
                           {program ? (
                             <div className="flex items-center gap-2">
-                              <span
-                                className="w-3 h-3 rounded-full"
-                                style={{
-                                  backgroundColor: program.color || "#3b82f6",
-                                }}
-                              ></span>
                               <span>
                                 {program.name} ({program.acronym})
                               </span>
