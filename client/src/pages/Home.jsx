@@ -14,7 +14,7 @@ import {
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
-import SearchResults from "@/pages/SearchResults"; // Import SearchResults
+import SearchResults from "@/pages/SearchResults";
 import heroBg from "@/assets/images/heroBg.png";
 import { ebookService } from "@/services/ebookService";
 import programService from "@/services/programService";
@@ -191,6 +191,11 @@ const Home = () => {
   const [selectedSort, setSelectedSort] = useState("popular");
   const [showSearchResults, setShowSearchResults] = useState(false);
 
+  // Get search mode from localStorage
+  const [searchMode, setSearchMode] = useState(() => {
+    return localStorage.getItem("searchMode") || "ebooks";
+  });
+
   // Real data states
   const [featuredBooks, setFeaturedBooks] = useState([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
@@ -206,6 +211,20 @@ const Home = () => {
     fetchFeaturedBooks();
     fetchPrograms();
     fetchStats();
+
+    // Listen for search mode changes from header
+    const handleSearchModeChange = (event) => {
+      setSearchMode(event.detail);
+      // Reset search results when mode changes
+      setShowSearchResults(false);
+      setSearchQuery("");
+    };
+
+    window.addEventListener("searchModeChange", handleSearchModeChange);
+
+    return () => {
+      window.removeEventListener("searchModeChange", handleSearchModeChange);
+    };
   }, []);
 
   const fetchFeaturedBooks = async () => {
@@ -285,7 +304,9 @@ const Home = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setShowSearchResults(true);
+    if (searchQuery.trim()) {
+      setShowSearchResults(true);
+    }
   };
 
   const clearFilters = () => {
@@ -313,12 +334,35 @@ const Home = () => {
     Boolean,
   ).length;
 
+  // If showing search results, render SearchResults component
+  if (showSearchResults) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC]">
+        <Header />
+        <ScrollToTopButton showAfter={300} />
+        <SearchResults
+          initialSearchQuery={searchQuery}
+          initialCourse={selectedCourse}
+          initialYear={selectedYear}
+          initialSort={selectedSort}
+          searchMode={searchMode}
+          onClose={() => {
+            setShowSearchResults(false);
+            setSearchQuery("");
+            clearFilters();
+          }}
+        />
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <Header />
       <ScrollToTopButton showAfter={300} />
 
-      {/* Hero Section - With Background Image */}
+      {/* Hero Section - With Background Image and Dynamic Search Mode */}
       <section
         className="relative py-20 border-b border-gray-200"
         style={{
@@ -334,9 +378,12 @@ const Home = () => {
               Opol Community College
               <span className="text-blue-600 block mt-2">Digital Library</span>
             </h1>
+
+            {/* Dynamic subtitle based on search mode */}
             <p className="text-lg text-gray-300 mb-8">
-              Access thousands of eBooks tailored for your program and year
-              level
+              {searchMode === "ebooks"
+                ? "Access thousands of eBooks tailored for your program and year level"
+                : "Find physical books available in the OCC Library"}
             </p>
 
             {/* Search Bar - Clean Design */}
@@ -349,26 +396,35 @@ const Home = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by title, author, or program..."
+                  placeholder={
+                    searchMode === "ebooks"
+                      ? "Search by title, author, or program..."
+                      : "Search by title, author, or ISBN..."
+                  }
                   className="flex-1 px-3 py-0 h-[56px] focus:outline-none focus:ring-0 focus:border-transparent border-0 ring-0 outline-none text-gray-700"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`relative px-5 h-[56px] flex items-center gap-2 transition-colors focus:outline-none focus:ring-0 ${
-                    showFilters || activeFilterCount > 0
-                      ? "text-primary"
-                      : "text-gray-500 hover:text-primary"
-                  }`}
-                >
-                  <Filter className="w-4 h-4" />
-                  <span className="text-sm hidden sm:inline">Filter</span>
-                  {activeFilterCount > 0 && (
-                    <span className="absolute top-2 right-2 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
+
+                {/* Only show filters for eBooks mode */}
+                {searchMode === "ebooks" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(!showFilters)}
+                    className={`relative px-5 h-[56px] flex items-center gap-2 transition-colors focus:outline-none focus:ring-0 ${
+                      showFilters || activeFilterCount > 0
+                        ? "text-primary"
+                        : "text-gray-500 hover:text-primary"
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                    <span className="text-sm hidden sm:inline">Filter</span>
+                    {activeFilterCount > 0 && (
+                      <span className="absolute top-2 right-2 w-4 h-4 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 <button
                   type="submit"
                   className="bg-primary text-white px-8 h-[56px] font-medium hover:bg-primaryDark transition-colors text-sm focus:outline-none focus:ring-0"
@@ -377,8 +433,8 @@ const Home = () => {
                 </button>
               </div>
 
-              {/* Filter Dropdown */}
-              {showFilters && (
+              {/* Filter Dropdown - Only show in eBooks mode */}
+              {searchMode === "ebooks" && showFilters && (
                 <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-2">
@@ -535,183 +591,170 @@ const Home = () => {
                 </div>
               )}
             </form>
+
+            {/* Search mode indicator for mobile */}
+            <div className="mt-4 text-sm text-gray-400 md:hidden">
+              Currently searching:{" "}
+              <span className="text-blue-400 font-medium">
+                {searchMode === "ebooks" ? "eBooks" : "Physical Books"}
+              </span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Content Section - Conditional rendering */}
-      {!showSearchResults ? (
-        <>
-          {/* Featured Books Section - Top 3 Most Downloaded */}
-          <section className="py-16">
-            <div className="container mx-auto px-4">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-                    <TrendingUp className="w-6 h-6 text-blue-600" />
-                    Most Downloaded
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    Top 3 most downloaded eBooks in the library
-                  </p>
-                </div>
-                <Link
-                  to="/browse"
-                  className="text-primary hover:text-primaryDark flex items-center gap-1 text-sm font-medium transition-colors"
-                >
-                  View All <ArrowRight className="w-4 h-4" />
-                </Link>
+      {/* Content Section */}
+      <>
+        {/* Featured Books Section - Top 3 Most Downloaded */}
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                  Most Downloaded
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Top 3 most downloaded eBooks in the library
+                </p>
               </div>
-
-              {loadingFeatured ? (
-                <div className="flex gap-6 justify-center">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse flex-shrink-0"
-                      style={{ width: "200px" }}
-                    >
-                      <div
-                        className="bg-gray-200"
-                        style={{ height: "280px" }}
-                      />
-                      <div className="p-3 space-y-2">
-                        <div className="h-3 bg-gray-200 rounded w-3/4" />
-                        <div className="h-2 bg-gray-100 rounded w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : featuredBooks.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No books uploaded yet.</p>
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-6 justify-center">
-                  {featuredBooks.map((book) => (
-                    <FeaturedBookCard
-                      key={book.id}
-                      book={book}
-                      onClick={() => navigate(`/ebook/${book.id}`)}
-                    />
-                  ))}
-                </div>
-              )}
+              <Link
+                to="/browse"
+                className="text-primary hover:text-primaryDark flex items-center gap-1 text-sm font-medium transition-colors"
+              >
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-          </section>
 
-          {/* Browse by Program Section */}
-          <section className="py-16 bg-white border-y border-gray-200">
-            <div className="container mx-auto px-4">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                    Browse by Program
-                  </h2>
-                  <p className="text-sm text-gray-600">
-                    Find eBooks specific to your program of study
-                  </p>
-                </div>
-                <Link
-                  to="/browse"
-                  className="text-primary hover:text-primaryDark flex items-center gap-1 text-sm font-medium transition-colors"
-                >
-                  View All eBooks <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-
-              {loadingPrograms ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div
-                      key={i}
-                      className="bg-gray-50 rounded-lg p-4 animate-pulse"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 bg-gray-200 rounded-lg" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-gray-200 rounded w-1/3" />
-                          <div className="h-3 bg-gray-200 rounded w-2/3" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : programs.length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  <GraduationCap className="w-12 h-12 mx-auto mb-2 opacity-40" />
-                  <p className="text-sm">No programs added yet.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {programs.slice(0, 6).map(
-                    (
-                      program, // Show only first 6 programs
-                    ) => (
-                      <ProgramCard
-                        key={program.id}
-                        program={program}
-                        onClick={() =>
-                          navigate(`/program/${program.id}/ebooks`)
-                        }
-                      />
-                    ),
-                  )}
-                </div>
-              )}
-
-              {/* View All Programs Link - only show if there are more than 6 programs */}
-              {programs.length > 6 && (
-                <div className="text-center mt-8">
-                  <Link
-                    to="/browse"
-                    className="inline-flex items-center gap-2 text-primary hover:text-primaryDark font-medium transition-colors"
+            {loadingFeatured ? (
+              <div className="flex gap-6 justify-center">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse flex-shrink-0"
+                    style={{ width: "200px" }}
                   >
-                    Browse All Programs <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              )}
+                    <div className="bg-gray-200" style={{ height: "280px" }} />
+                    <div className="p-3 space-y-2">
+                      <div className="h-3 bg-gray-200 rounded w-3/4" />
+                      <div className="h-2 bg-gray-100 rounded w-1/2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : featuredBooks.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No books uploaded yet.</p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-6 justify-center">
+                {featuredBooks.map((book) => (
+                  <FeaturedBookCard
+                    key={book.id}
+                    book={book}
+                    onClick={() => navigate(`/ebook/${book.id}`)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Browse by Program Section */}
+        <section className="py-16 bg-white border-y border-gray-200">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  Browse by Program
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Find eBooks specific to your program of study
+                </p>
+              </div>
+              <Link
+                to="/browse"
+                className="text-primary hover:text-primaryDark flex items-center gap-1 text-sm font-medium transition-colors"
+              >
+                View All eBooks <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
-          </section>
-          {/* CTA Section */}
-          <section className="py-12 bg-primary">
-            <div className="container mx-auto px-4 text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">
-                Start Your Learning Journey
-              </h2>
-              <p className="text-white/90 mb-4 max-w-xl mx-auto text-sm">
-                Access program-specific materials and enhance your studies
-              </p>
-              <div className="flex gap-3 justify-center">
+
+            {loadingPrograms ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-gray-50 rounded-lg p-4 animate-pulse"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-11 h-11 bg-gray-200 rounded-lg" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded w-1/3" />
+                        <div className="h-3 bg-gray-200 rounded w-2/3" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : programs.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <GraduationCap className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No programs added yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {programs.slice(0, 6).map((program) => (
+                  <ProgramCard
+                    key={program.id}
+                    program={program}
+                    onClick={() => navigate(`/program/${program.id}/ebooks`)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* View All Programs Link - only show if there are more than 6 programs */}
+            {programs.length > 6 && (
+              <div className="text-center mt-8">
                 <Link
                   to="/browse"
-                  className="bg-white text-primary px-5 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors text-sm"
+                  className="inline-flex items-center gap-2 text-primary hover:text-primaryDark font-medium transition-colors"
                 >
-                  Browse Library
-                </Link>
-                <Link
-                  to="/about"
-                  className="border-2 border-white text-white px-5 py-2 rounded-lg font-medium hover:bg-white/10 transition-colors text-sm"
-                >
-                  Learn More
+                  Browse All Programs <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
-            </div>
-          </section>
-        </>
-      ) : (
-        // Show Search Results component with filters passed as props
-        <SearchResults
-          initialSearchQuery={searchQuery}
-          initialCourse={selectedCourse}
-          initialYear={selectedYear}
-          initialSort={selectedSort}
-          onClose={() => setShowSearchResults(false)}
-        />
-      )}
+            )}
+          </div>
+        </section>
 
-      <Footer />
+        {/* CTA Section */}
+        <section className="py-12 bg-primary">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Start Your Learning Journey
+            </h2>
+            <p className="text-white/90 mb-4 max-w-xl mx-auto text-sm">
+              Access program-specific materials and enhance your studies
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Link
+                to="/browse"
+                className="bg-white text-primary px-5 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors text-sm"
+              >
+                Browse Library
+              </Link>
+              <Link
+                to="/about"
+                className="border-2 border-white text-white px-5 py-2 rounded-lg font-medium hover:bg-white/10 transition-colors text-sm"
+              >
+                Learn More
+              </Link>
+            </div>
+          </div>
+        </section>
+      </>
     </div>
   );
 };

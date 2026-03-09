@@ -1,4 +1,4 @@
-// src/App.jsx (add the UpdateEbook route)
+// src/App.jsx (add the Books, NewBook, and ImportBooks routes)
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
@@ -6,8 +6,11 @@ import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import UploadEbook from "@/pages/UploadEbook";
-import UpdateEbook from "@/pages/UpdateEbook"; // Import the new component
+import UpdateEbook from "@/pages/UpdateEbook";
 import Ebooks from "@/pages/Ebooks";
+import Books from "@/pages/Books";
+import NewBook from "@/pages/NewBook";
+import ImportBooks from "@/pages/ImportBooks";
 import SearchResults from "@/pages/SearchResults";
 import EbookDetails from "@/pages/EbookDetails";
 import EbookRecord from "@/pages/EbookRecord";
@@ -62,9 +65,14 @@ const App = () => {
           <Route element={<ProtectedLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/upload" element={<UploadEbook />} />
-            <Route path="/ebook/update/:id" element={<UpdateEbook />} />{" "}
-            {/* New route */}
+            <Route path="/ebook/update/:id" element={<UpdateEbook />} />
             <Route path="/my-ebooks" element={<Ebooks />} />
+
+            {/* New Book Management Routes */}
+            <Route path="/books" element={<Books />} />
+            <Route path="/books/new" element={<NewBook />} />
+            <Route path="/books/import" element={<ImportBooks />} />
+
             <Route path="/ebook-record/:id" element={<EbookRecord />} />
             <Route path="/programs" element={<Programs />} />
             <Route path="/programs/add" element={<AddProgram />} />

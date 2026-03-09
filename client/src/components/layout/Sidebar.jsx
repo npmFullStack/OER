@@ -19,6 +19,7 @@ const Sidebar = ({ isOpen }) => {
     { path: "/dashboard", name: "Dashboard", icon: LayoutDashboard },
     { path: "/upload", name: "Upload eBook", icon: Upload },
     { path: "/my-ebooks", name: "My eBooks", icon: BookOpen },
+    { path: "/books", name: "My Books", icon: Library },
     { path: "/programs", name: "Programs", icon: GraduationCap },
     { path: "/settings", name: "Settings", icon: Settings },
   ];
