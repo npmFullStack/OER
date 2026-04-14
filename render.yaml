@@ -1,0 +1,5 @@
+services:
+  - type: static
+    name: OER
+    publish: ./c # This will publish the c folder (which contains your built files? or source files?)
+    buildCommand: cd c && npm install && npm run build
