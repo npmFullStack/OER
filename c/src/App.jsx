@@ -34,16 +34,24 @@ const App = () => {
           },
           success: {
             duration: 3000,
+            style: {
+              background: "#22c55e",
+              color: "#fff",
+            },
             iconTheme: {
-              primary: "#0e326c",
-              secondary: "#fff",
+              primary: "#fff",
+              secondary: "#22c55e",
             },
           },
           error: {
             duration: 4000,
+            style: {
+              background: "#ef4444",
+              color: "#fff",
+            },
             iconTheme: {
-              primary: "#ef4444",
-              secondary: "#fff",
+              primary: "#fff",
+              secondary: "#ef4444",
             },
           },
         }}
