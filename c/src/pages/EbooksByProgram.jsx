@@ -1,14 +1,12 @@
 // src/pages/EbooksByProgram.jsx
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   BookOpen,
   Download,
   ArrowLeft,
   GraduationCap,
   Calendar,
-  User,
-  Filter,
   Search,
   Grid3x3,
   List,
@@ -16,9 +14,230 @@ import {
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ScrollToTopButton from "@/components/ScrollToTopButton";
-import { ebookService } from "@/services/ebookService";
-import programService from "@/services/programService";
-import toast from "react-hot-toast";
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const PROGRAMS = [
+  {
+    id: "1",
+    name: "Bachelor of Science in Information Technology",
+    acronym: "BSIT",
+    color: "#3b82f6",
+  },
+  {
+    id: "2",
+    name: "Bachelor of Science in Computer Science",
+    acronym: "BSCS",
+    color: "#10b981",
+  },
+  {
+    id: "3",
+    name: "Bachelor of Science in Computer Engineering",
+    acronym: "BSCpE",
+    color: "#f59e0b",
+  },
+  {
+    id: "4",
+    name: "Bachelor of Science in Electronics Engineering",
+    acronym: "BSECE",
+    color: "#8b5cf6",
+  },
+  {
+    id: "5",
+    name: "Bachelor of Science in Electrical Engineering",
+    acronym: "BSEE",
+    color: "#ef4444",
+  },
+  {
+    id: "6",
+    name: "Bachelor of Science in Mechanical Engineering",
+    acronym: "BSME",
+    color: "#06b6d4",
+  },
+];
+
+const ALL_EBOOKS = [
+  {
+    id: "1",
+    program_id: "1",
+    title: "Introduction to Programming",
+    file_name: "intro-programming.pdf",
+    file_size: 2048000,
+    file_url: "#",
+    cover_url: null,
+    downloads: 342,
+    year_level: 1,
+    created_at: "2024-01-10T08:00:00Z",
+    program_acronym: "BSIT",
+    program_color: "#3b82f6",
+    uploader_name: "Prof. Santos",
+  },
+  {
+    id: "2",
+    program_id: "1",
+    title: "Data Structures and Algorithms",
+    file_name: "dsa.pdf",
+    file_size: 3145728,
+    file_url: "#",
+    cover_url: null,
+    downloads: 289,
+    year_level: 2,
+    created_at: "2024-01-15T08:00:00Z",
+    program_acronym: "BSIT",
+    program_color: "#3b82f6",
+    uploader_name: "Prof. Reyes",
+  },
+  {
+    id: "3",
+    program_id: "1",
+    title: "Database Management Systems",
+    file_name: "dbms.pdf",
+    file_size: 4194304,
+    file_url: "#",
+    cover_url: null,
+    downloads: 412,
+    year_level: 2,
+    created_at: "2024-02-01T08:00:00Z",
+    program_acronym: "BSIT",
+    program_color: "#3b82f6",
+    uploader_name: "Prof. Lim",
+  },
+  {
+    id: "4",
+    program_id: "2",
+    title: "Discrete Mathematics",
+    file_name: "discrete-math.pdf",
+    file_size: 5242880,
+    file_url: "#",
+    cover_url: null,
+    downloads: 198,
+    year_level: 1,
+    created_at: "2024-01-20T08:00:00Z",
+    program_acronym: "BSCS",
+    program_color: "#10b981",
+    uploader_name: "Prof. Garcia",
+  },
+  {
+    id: "5",
+    program_id: "2",
+    title: "Operating Systems Concepts",
+    file_name: "os-concepts.pdf",
+    file_size: 6291456,
+    file_url: "#",
+    cover_url: null,
+    downloads: 321,
+    year_level: 3,
+    created_at: "2024-02-10T08:00:00Z",
+    program_acronym: "BSCS",
+    program_color: "#10b981",
+    uploader_name: "Prof. Cruz",
+  },
+  {
+    id: "6",
+    program_id: "3",
+    title: "Digital Logic Design",
+    file_name: "digital-logic.pdf",
+    file_size: 3670016,
+    file_url: "#",
+    cover_url: null,
+    downloads: 156,
+    year_level: 1,
+    created_at: "2024-03-01T08:00:00Z",
+    program_acronym: "BSCpE",
+    program_color: "#f59e0b",
+    uploader_name: "Prof. Torres",
+  },
+  {
+    id: "7",
+    program_id: "3",
+    title: "Microprocessors and Microcontrollers",
+    file_name: "microprocessors.pdf",
+    file_size: 4718592,
+    file_url: "#",
+    cover_url: null,
+    downloads: 234,
+    year_level: 3,
+    created_at: "2024-03-15T08:00:00Z",
+    program_acronym: "BSCpE",
+    program_color: "#f59e0b",
+    uploader_name: "Prof. Navarro",
+  },
+  {
+    id: "8",
+    program_id: "1",
+    title: "Web Development Fundamentals",
+    file_name: "web-dev.pdf",
+    file_size: 2621440,
+    file_url: "#",
+    cover_url: null,
+    downloads: 567,
+    year_level: 2,
+    created_at: "2024-04-01T08:00:00Z",
+    program_acronym: "BSIT",
+    program_color: "#3b82f6",
+    uploader_name: "Prof. Santos",
+  },
+  {
+    id: "9",
+    program_id: "2",
+    title: "Artificial Intelligence",
+    file_name: "ai-fundamentals.pdf",
+    file_size: 7340032,
+    file_url: "#",
+    cover_url: null,
+    downloads: 445,
+    year_level: 4,
+    created_at: "2024-04-15T08:00:00Z",
+    program_acronym: "BSCS",
+    program_color: "#10b981",
+    uploader_name: "Prof. Reyes",
+  },
+  {
+    id: "10",
+    program_id: "4",
+    title: "Electronic Circuits Analysis",
+    file_name: "circuits.pdf",
+    file_size: 5767168,
+    file_url: "#",
+    cover_url: null,
+    downloads: 123,
+    year_level: 2,
+    created_at: "2024-05-01T08:00:00Z",
+    program_acronym: "BSECE",
+    program_color: "#8b5cf6",
+    uploader_name: "Prof. Dela Cruz",
+  },
+  {
+    id: "11",
+    program_id: "1",
+    title: "Software Engineering",
+    file_name: "software-eng.pdf",
+    file_size: 3932160,
+    file_url: "#",
+    cover_url: null,
+    downloads: 378,
+    year_level: 3,
+    created_at: "2024-05-10T08:00:00Z",
+    program_acronym: "BSIT",
+    program_color: "#3b82f6",
+    uploader_name: "Prof. Lim",
+  },
+  {
+    id: "12",
+    program_id: "2",
+    title: "Machine Learning Basics",
+    file_name: "ml-basics.pdf",
+    file_size: 8388608,
+    file_url: "#",
+    cover_url: null,
+    downloads: 512,
+    year_level: 4,
+    created_at: "2024-05-20T08:00:00Z",
+    program_acronym: "BSCS",
+    program_color: "#10b981",
+    uploader_name: "Prof. Garcia",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
 
 const formatDownloads = (n) => {
   if (!n && n !== 0) return "0";
@@ -33,22 +252,31 @@ const yearOptions = [
   { value: "4", label: "4th Year" },
 ];
 
+const adjustColor = (hex, percent) => {
+  try {
+    const num = parseInt(hex.slice(1), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = ((num >> 8) & 0x00ff) + amt;
+    const B = (num & 0x0000ff) + amt;
+    return `#${(
+      0x1000000 +
+      (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+      (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+      (B < 255 ? (B < 1 ? 0 : B) : 255)
+    )
+      .toString(16)
+      .slice(1)}`;
+  } catch {
+    return hex;
+  }
+};
+
 const EbookCard = ({ book, viewMode = "grid", onClick }) => {
   const [imgError, setImgError] = useState(false);
   const [imgLoading, setImgLoading] = useState(true);
 
-  const getCoverUrl = () => {
-    if (!book.cover_url) return null;
-    if (book.cover_url.startsWith("http")) {
-      return book.cover_url;
-    }
-    const baseUrl =
-      import.meta.env.VITE_API_URL?.replace("/api", "") ||
-      "http://localhost:5000";
-    return `${baseUrl}${book.cover_url}`;
-  };
-
-  const coverUrl = getCoverUrl();
+  const coverUrl = book.cover_url?.startsWith("http") ? book.cover_url : null;
   const showCover = coverUrl && !imgError;
   const programColor = book.program_color || "#3b82f6";
 
@@ -59,18 +287,11 @@ const EbookCard = ({ book, viewMode = "grid", onClick }) => {
         className="group bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer flex overflow-hidden"
       >
         <div className="w-20 h-28 flex-shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 relative overflow-hidden">
-          {imgLoading && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
           {showCover ? (
             <img
               src={coverUrl}
               alt={book.title}
-              className={`w-full h-full object-cover ${
-                imgLoading ? "opacity-0" : "opacity-100"
-              }`}
+              className={`w-full h-full object-cover ${imgLoading ? "opacity-0" : "opacity-100"}`}
               onLoad={() => setImgLoading(false)}
               onError={() => {
                 setImgError(true);
@@ -108,7 +329,7 @@ const EbookCard = ({ book, viewMode = "grid", onClick }) => {
         className="relative w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200"
         style={{ height: "200px" }}
       >
-        {imgLoading && (
+        {imgLoading && showCover && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
@@ -117,9 +338,7 @@ const EbookCard = ({ book, viewMode = "grid", onClick }) => {
           <img
             src={coverUrl}
             alt={book.title}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
-              imgLoading ? "opacity-0" : "opacity-100"
-            }`}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${imgLoading ? "opacity-0" : "opacity-100"}`}
             onLoad={() => setImgLoading(false)}
             onError={() => {
               setImgError(true);
@@ -176,73 +395,47 @@ const EbooksByProgram = () => {
   const [loading, setLoading] = useState(true);
   const [programLoading, setProgramLoading] = useState(true);
 
-  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [viewMode, setViewMode] = useState("grid");
-  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    fetchProgramDetails();
-    fetchProgramEbooks();
+    // Simulate async fetch from mock data
+    const timer = setTimeout(() => {
+      const foundProgram = PROGRAMS.find(
+        (p) => String(p.id) === String(programId),
+      );
+      setProgram(foundProgram || null);
+      setProgramLoading(false);
+
+      const programEbooks = ALL_EBOOKS.filter(
+        (e) => String(e.program_id) === String(programId),
+      );
+      setEbooks(programEbooks);
+      setFilteredEbooks(programEbooks);
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
   }, [programId]);
 
   useEffect(() => {
     applyFilters();
   }, [ebooks, searchQuery, selectedYear, sortBy]);
 
-  const fetchProgramDetails = async () => {
-    try {
-      setProgramLoading(true);
-      const response = await programService.getById(programId);
-      if (response.success && response.data) {
-        setProgram(response.data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch program:", error);
-      toast.error("Failed to load program details");
-    } finally {
-      setProgramLoading(false);
-    }
-  };
-
-  const fetchProgramEbooks = async () => {
-    try {
-      setLoading(true);
-      const data = await ebookService.getEbooksByProgram(programId);
-      const books = Array.isArray(data) ? data : data.data || [];
-      setEbooks(books);
-      setFilteredEbooks(books);
-    } catch (error) {
-      console.error("Failed to fetch ebooks:", error);
-      toast.error("Failed to load ebooks");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const applyFilters = () => {
     let filtered = [...ebooks];
-
-    // Apply search
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
+      const q = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
-        (book) =>
-          book.title?.toLowerCase().includes(query) ||
-          book.uploader_name?.toLowerCase().includes(query),
+        (b) =>
+          b.title?.toLowerCase().includes(q) ||
+          b.uploader_name?.toLowerCase().includes(q),
       );
     }
-
-    // Apply year filter
     if (selectedYear) {
-      filtered = filtered.filter(
-        (book) => String(book.year_level) === selectedYear,
-      );
+      filtered = filtered.filter((b) => String(b.year_level) === selectedYear);
     }
-
-    // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
         case "newest":
@@ -257,7 +450,6 @@ const EbooksByProgram = () => {
           return 0;
       }
     });
-
     setFilteredEbooks(filtered);
   };
 
@@ -267,13 +459,7 @@ const EbooksByProgram = () => {
     setSortBy("newest");
   };
 
-  const activeFilterCount = [searchQuery, selectedYear].filter(Boolean).length;
-
-  // Stats
-  const totalDownloads = ebooks.reduce(
-    (sum, book) => sum + (book.downloads || 0),
-    0,
-  );
+  const totalDownloads = ebooks.reduce((sum, b) => sum + (b.downloads || 0), 0);
   const uniqueYears = [
     ...new Set(ebooks.map((b) => b.year_level).filter(Boolean)),
   ].sort();
@@ -331,11 +517,7 @@ const EbooksByProgram = () => {
                     <div className="flex items-center gap-2 text-white/80">
                       <Calendar className="w-4 h-4" />
                       <span className="text-sm">
-                        Years:{" "}
-                        {uniqueYears
-                          .sort()
-                          .map((y) => `${y}`)
-                          .join(", ")}
+                        Years: {uniqueYears.join(", ")}
                       </span>
                     </div>
                   )}
@@ -356,7 +538,6 @@ const EbooksByProgram = () => {
           {/* Filters Bar */}
           <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
             <div className="flex flex-col md:flex-row gap-4">
-              {/* Search */}
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -364,16 +545,15 @@ const EbooksByProgram = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search within this program..."
-                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
 
               <div className="flex gap-2">
-                {/* Year Filter */}
                 <select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary min-w-[120px]"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[120px]"
                 >
                   <option value="">All Years</option>
                   {yearOptions.map((year) => (
@@ -383,11 +563,10 @@ const EbooksByProgram = () => {
                   ))}
                 </select>
 
-                {/* Sort */}
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary min-w-[140px]"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 min-w-[140px]"
                 >
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
@@ -395,25 +574,16 @@ const EbooksByProgram = () => {
                   <option value="title">Title A-Z</option>
                 </select>
 
-                {/* View Toggle */}
                 <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`p-2 ${
-                      viewMode === "grid"
-                        ? "bg-primary text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
-                    }`}
+                    className={`p-2 ${viewMode === "grid" ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                   >
                     <Grid3x3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`p-2 ${
-                      viewMode === "list"
-                        ? "bg-primary text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
-                    }`}
+                    className={`p-2 ${viewMode === "list" ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
                   >
                     <List className="w-4 h-4" />
                   </button>
@@ -421,28 +591,27 @@ const EbooksByProgram = () => {
               </div>
             </div>
 
-            {/* Active Filters */}
             {(searchQuery || selectedYear) && (
               <div className="flex flex-wrap items-center justify-between mt-3 pt-3 border-t border-gray-100">
                 <div className="flex flex-wrap gap-2">
                   {searchQuery && (
-                    <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded-full text-xs">
                       Search: "{searchQuery}"
                       <button
                         onClick={() => setSearchQuery("")}
-                        className="hover:bg-primary/20 rounded-full p-0.5"
+                        className="hover:bg-blue-100 rounded-full p-0.5"
                       >
                         ×
                       </button>
                     </span>
                   )}
                   {selectedYear && (
-                    <span className="inline-flex items-center gap-1 bg-primary/10 text-primary px-2 py-1 rounded-full text-xs">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-600 px-2 py-1 rounded-full text-xs">
                       Year:{" "}
                       {yearOptions.find((y) => y.value === selectedYear)?.label}
                       <button
                         onClick={() => setSelectedYear("")}
-                        className="hover:bg-primary/20 rounded-full p-0.5"
+                        className="hover:bg-blue-100 rounded-full p-0.5"
                       >
                         ×
                       </button>
@@ -459,7 +628,6 @@ const EbooksByProgram = () => {
             )}
           </div>
 
-          {/* Results Summary */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm text-gray-600">
               Showing {filteredEbooks.length} of {ebooks.length} eBooks
@@ -501,7 +669,7 @@ const EbooksByProgram = () => {
               {(searchQuery || selectedYear) && (
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primaryDark transition-colors text-sm"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
                   Clear Filters
                 </button>
@@ -543,27 +711,6 @@ const EbooksByProgram = () => {
       <Footer />
     </div>
   );
-};
-
-// Helper function to adjust color brightness
-const adjustColor = (hex, percent) => {
-  try {
-    const num = parseInt(hex.slice(1), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = (num >> 16) + amt;
-    const G = ((num >> 8) & 0x00ff) + amt;
-    const B = (num & 0x0000ff) + amt;
-    return `#${(
-      0x1000000 +
-      (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
-      (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
-      (B < 255 ? (B < 1 ? 0 : B) : 255)
-    )
-      .toString(16)
-      .slice(1)}`;
-  } catch {
-    return hex;
-  }
 };
 
 export default EbooksByProgram;

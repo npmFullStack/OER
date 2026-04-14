@@ -4,7 +4,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { GraduationCap, ArrowLeft, Save, Tag, Info } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import toast from "react-hot-toast";
-import programService from "../services/programService";
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const AddProgram = () => {
   const navigate = useNavigate();
@@ -29,8 +31,8 @@ const AddProgram = () => {
   const fetchProgram = async () => {
     try {
       setLoading(true);
-      const response = await programService.getById(id);
-      if (response.success) {
+      const response = await axios.get(`${API_URL}/programs/${id}`);
+      if (response.data) {
         setFormData({
           name: response.data.name || "",
           acronym: response.data.acronym || "",
@@ -62,12 +64,12 @@ const AddProgram = () => {
 
       let response;
       if (isEditMode) {
-        response = await programService.update(id, formData);
+        response = await axios.put(`${API_URL}/programs/${id}`, formData);
       } else {
-        response = await programService.create(formData);
+        response = await axios.post(`${API_URL}/programs`, formData);
       }
 
-      if (response.success) {
+      if (response.data) {
         toast.success(
           isEditMode
             ? "Program updated successfully!"
@@ -75,7 +77,7 @@ const AddProgram = () => {
         );
         navigate("/programs");
       } else {
-        toast.error(response.message || "Failed to save program");
+        toast.error(response.data?.message || "Failed to save program");
       }
     } catch (error) {
       console.error("Error saving program:", error);

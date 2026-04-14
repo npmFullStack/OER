@@ -1,7 +1,6 @@
 // Footer.jsx
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
-import logo from "@/assets/images/logo.webp";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -26,17 +25,27 @@ const Footer = () => {
       {/* Main Footer */}
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          {/* Brand Column */}
+          {/* Brand Column - Text logo matching header style */}
           <div className="col-span-1 md:col-span-1">
             <Link to="/" className="flex items-center space-x-3 mb-4">
-              <img
-                src={logo}
-                alt="OCC eRead"
-                className="w-10 h-10 object-contain"
-              />
-              <span className="text-2xl font-bold tracking-wide">
+              <span className="text-2xl font-black tracking-wider whitespace-nowrap">
                 <span className="text-blue-600">OCC</span>
-                <span className="text-white">eRead</span>
+                <span className="inline-flex items-baseline">
+                  <span
+                    className="font-black text-white"
+                    style={{
+                      fontStyle: "italic",
+                      fontWeight: 900,
+                      fontSize: "1.1em",
+                      lineHeight: 1,
+                      letterSpacing: "-0.03em",
+                      marginRight: "1px",
+                    }}
+                  >
+                    e
+                  </span>
+                  <span className="text-white">Library</span>
+                </span>
               </span>
             </Link>
             <p className="text-sm text-gray-400 font-normal leading-relaxed max-w-xs">

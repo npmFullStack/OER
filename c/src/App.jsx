@@ -1,7 +1,6 @@
-// src/App.jsx (add the Books, NewBook, and ImportBooks routes)
+// src/App.jsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { AuthProvider } from "@/context/AuthContext";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
@@ -24,68 +23,66 @@ import ProgramDetails from "@/pages/ProgramDetails";
 const App = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Toaster
-          position="top-right"
-          toastOptions={{
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#fff",
+            color: "#363636",
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: "#0e326c",
+              secondary: "#fff",
+            },
+          },
+          error: {
             duration: 4000,
-            style: {
-              background: "#fff",
-              color: "#363636",
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#fff",
             },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: "#0e326c",
-                secondary: "#fff",
-              },
-            },
-            error: {
-              duration: 4000,
-              iconTheme: {
-                primary: "#ef4444",
-                secondary: "#fff",
-              },
-            },
-          }}
+          },
+        }}
+      />
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/search" element={<SearchResults />} />
+        <Route path="/ebook/:id" element={<EbookDetails />} />
+        <Route path="/browse" element={<AllEbooks />} />
+        <Route
+          path="/program/:programId/ebooks"
+          element={<EbooksByProgram />}
         />
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/search" element={<SearchResults />} />
-          <Route path="/ebook/:id" element={<EbookDetails />} />
-          <Route path="/browse" element={<AllEbooks />} />
+
+        {/* Protected routes */}
+        <Route element={<ProtectedLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/upload" element={<UploadEbook />} />
+          <Route path="/ebook/update/:id" element={<UpdateEbook />} />
+          <Route path="/my-ebooks" element={<Ebooks />} />
+
+          {/* Book Management Routes */}
+          <Route path="/books" element={<Books />} />
+          <Route path="/books/new" element={<NewBook />} />
+          <Route path="/books/import" element={<ImportBooks />} />
+
+          <Route path="/ebook-record/:id" element={<EbookRecord />} />
+          <Route path="/programs" element={<Programs />} />
+          <Route path="/programs/add" element={<AddProgram />} />
+          <Route path="/programs/edit/:id" element={<AddProgram />} />
+          <Route path="/program/:id" element={<ProgramDetails />} />
+          <Route path="/settings" element={<div>Settings Page</div>} />
           <Route
-            path="/program/:programId/ebooks"
-            element={<EbooksByProgram />}
+            path="/notifications"
+            element={<div>Notifications Page</div>}
           />
-
-          {/* Protected routes */}
-          <Route element={<ProtectedLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/upload" element={<UploadEbook />} />
-            <Route path="/ebook/update/:id" element={<UpdateEbook />} />
-            <Route path="/my-ebooks" element={<Ebooks />} />
-
-            {/* New Book Management Routes */}
-            <Route path="/books" element={<Books />} />
-            <Route path="/books/new" element={<NewBook />} />
-            <Route path="/books/import" element={<ImportBooks />} />
-
-            <Route path="/ebook-record/:id" element={<EbookRecord />} />
-            <Route path="/programs" element={<Programs />} />
-            <Route path="/programs/add" element={<AddProgram />} />
-            <Route path="/programs/edit/:id" element={<AddProgram />} />
-            <Route path="/program/:id" element={<ProgramDetails />} />
-            <Route path="/settings" element={<div>Settings Page</div>} />
-            <Route
-              path="/notifications"
-              element={<div>Notifications Page</div>}
-            />
-          </Route>
-        </Routes>
-      </AuthProvider>
+        </Route>
+      </Routes>
     </BrowserRouter>
   );
 };

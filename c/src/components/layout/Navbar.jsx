@@ -10,19 +10,16 @@ import {
   Settings,
   LogOut,
   BookOpen,
-  Mail,
   UserCircle,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
 import logo from "@/assets/images/logo.webp";
 
 const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
+  const [notifications] = useState([
     {
       id: 1,
       title: "New eBook uploaded",
@@ -60,7 +57,6 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   }, []);
 
   const handleLogout = () => {
-    logout();
     navigate("/login");
   };
 
@@ -192,13 +188,9 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-gray-900">
-                      {user
-                        ? `${user.firstname} ${user.lastname}`
-                        : "Admin User"}
+                      Admin User
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {user?.email || "admin@occ.edu"}
-                    </p>
+                    <p className="text-xs text-gray-500">admin@occ.edu</p>
                   </div>
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -215,11 +207,9 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          {user
-                            ? `${user.firstname} ${user.lastname}`
-                            : "Admin User"}
+                          Admin User
                         </p>
-                        <p className="text-xs text-gray-600">{user?.email}</p>
+                        <p className="text-xs text-gray-600">admin@occ.edu</p>
                       </div>
                     </div>
                   </div>

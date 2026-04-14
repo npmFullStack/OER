@@ -9,14 +9,64 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   BookOpen,
   MoreVertical,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import programService from "@/services/programService";
 
-// Convert hex color to a very light tint for card background
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const INITIAL_PROGRAMS = [
+  {
+    id: 1,
+    name: "Bachelor of Science in Information Technology",
+    acronym: "BSIT",
+    color: "#3b82f6",
+    total_ebooks: 12,
+    created_at: "2023-01-15",
+  },
+  {
+    id: 2,
+    name: "Bachelor of Science in Computer Science",
+    acronym: "BSCS",
+    color: "#10b981",
+    total_ebooks: 9,
+    created_at: "2023-02-20",
+  },
+  {
+    id: 3,
+    name: "Bachelor of Science in Computer Engineering",
+    acronym: "BSCpE",
+    color: "#f59e0b",
+    total_ebooks: 7,
+    created_at: "2023-03-10",
+  },
+  {
+    id: 4,
+    name: "Bachelor of Science in Electronics Engineering",
+    acronym: "BSECE",
+    color: "#8b5cf6",
+    total_ebooks: 5,
+    created_at: "2023-04-05",
+  },
+  {
+    id: 5,
+    name: "Bachelor of Science in Electrical Engineering",
+    acronym: "BSEE",
+    color: "#ef4444",
+    total_ebooks: 4,
+    created_at: "2023-05-12",
+  },
+  {
+    id: 6,
+    name: "Bachelor of Science in Mechanical Engineering",
+    acronym: "BSME",
+    color: "#06b6d4",
+    total_ebooks: 3,
+    created_at: "2023-06-18",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
+
 const hexToLightBg = (hex) => {
   try {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -76,7 +126,6 @@ const ProgramCard = ({ program, onEdit, onDelete }) => {
           <MoreVertical className="w-4 h-4 text-gray-600" />
         </button>
 
-        {/* Dropdown Menu */}
         {showMenu && (
           <>
             <div
@@ -121,32 +170,13 @@ const Programs = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchPrograms();
-  }, []);
-
-  const fetchPrograms = async () => {
-    try {
-      setLoading(true);
-      // Try to get programs with ebook counts first
-      const response = await programService.getWithEbookCounts();
-      if (response.success) {
-        setPrograms(response.data || []);
-      } else {
-        // Fallback to regular getAll
-        const fallbackResponse = await programService.getAll();
-        if (fallbackResponse.success) {
-          setPrograms(fallbackResponse.data || []);
-        } else {
-          toast.error("Failed to load programs");
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching programs:", error);
-      toast.error("Failed to load programs");
-    } finally {
+    // Simulate async fetch
+    const timer = setTimeout(() => {
+      setPrograms(INITIAL_PROGRAMS);
       setLoading(false);
-    }
-  };
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredPrograms = programs.filter(
     (program) =>
@@ -154,7 +184,6 @@ const Programs = () => {
       program.acronym?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredPrograms.slice(
@@ -167,23 +196,12 @@ const Programs = () => {
     navigate(`/programs/edit/${id}`);
   };
 
-  const handleDelete = async (id, programName) => {
+  const handleDelete = (id, programName) => {
     if (!window.confirm(`Are you sure you want to delete "${programName}"?`)) {
       return;
     }
-
-    try {
-      const response = await programService.delete(id);
-      if (response.success) {
-        toast.success("Program deleted successfully");
-        fetchPrograms(); // Refresh the list
-      } else {
-        toast.error(response.message || "Failed to delete program");
-      }
-    } catch (error) {
-      console.error("Error deleting program:", error);
-      toast.error(error.response?.data?.message || "Failed to delete program");
-    }
+    setPrograms((prev) => prev.filter((p) => p.id !== id));
+    toast.success("Program deleted successfully");
   };
 
   return (

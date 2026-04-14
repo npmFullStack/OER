@@ -1,11 +1,10 @@
 // src/components/layout/Sidebar.jsx
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
   Upload,
-  Users,
   Settings,
   ChevronRight,
   User,
@@ -15,6 +14,8 @@ import {
 } from "lucide-react";
 
 const Sidebar = ({ isOpen }) => {
+  const navigate = useNavigate();
+
   const menuItems = [
     { path: "/dashboard", name: "Dashboard", icon: LayoutDashboard },
     { path: "/upload", name: "Upload eBook", icon: Upload },
@@ -34,11 +35,11 @@ const Sidebar = ({ isOpen }) => {
 
   return (
     <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] *:transition-all duration-300 z-40 flex flex-col ${
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-all duration-300 z-40 flex flex-col ${
         isOpen ? "w-64" : "w-20"
       }`}
     >
-      {/* Navigation Menu - Takes remaining space */}
+      {/* Navigation Menu */}
       <div className="flex-1 overflow-y-auto">
         <nav className="p-3">
           <ul className="space-y-1">
@@ -68,7 +69,6 @@ const Sidebar = ({ isOpen }) => {
       {/* User Config Section - Fixed at bottom */}
       <div className="border-t border-gray-200 p-3">
         {isOpen ? (
-          // Expanded view
           <div className="space-y-2">
             <div className="flex items-center gap-3 px-3 py-2.5">
               <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -82,10 +82,7 @@ const Sidebar = ({ isOpen }) => {
               </div>
             </div>
             <button
-              onClick={() => {
-                // Handle logout
-                console.log("Logout clicked");
-              }}
+              onClick={() => navigate("/login")}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >
@@ -94,16 +91,12 @@ const Sidebar = ({ isOpen }) => {
             </button>
           </div>
         ) : (
-          // Collapsed view
           <div className="flex flex-col items-center gap-2">
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
             </div>
             <button
-              onClick={() => {
-                // Handle logout
-                console.log("Logout clicked");
-              }}
+              onClick={() => navigate("/login")}
               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >

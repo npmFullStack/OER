@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BookOpen,
@@ -10,61 +10,41 @@ import {
   Clock,
   GraduationCap,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
-import api from "@/services/api";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [stats, setStats] = useState({
+  const [stats] = useState({
     totalEbooks: 156,
     monthlyEbooks: 24,
     totalCourses: 8,
   });
-  const [recentActivity, setRecentActivity] = useState([]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      // You can implement these endpoints later
-      // const response = await api.get("/dashboard/stats");
-      // setStats(response.data.data);
-
-      // Mock recent activity
-      setRecentActivity([
-        {
-          id: 1,
-          title: "Introduction to Computer Science",
-          course: "BSIT",
-          time: "2 hours ago",
-        },
-        {
-          id: 2,
-          title: "Financial Management Principles",
-          course: "BSBA-FM",
-          time: "5 hours ago",
-        },
-        {
-          id: 3,
-          title: "Teaching Strategies in Elementary Education",
-          course: "BEED",
-          time: "1 day ago",
-        },
-      ]);
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
-    }
-  };
+  const [recentActivity] = useState([
+    {
+      id: 1,
+      title: "Introduction to Computer Science",
+      course: "BSIT",
+      time: "2 hours ago",
+    },
+    {
+      id: 2,
+      title: "Financial Management Principles",
+      course: "BSBA-FM",
+      time: "5 hours ago",
+    },
+    {
+      id: 3,
+      title: "Teaching Strategies in Elementary Education",
+      course: "BEED",
+      time: "1 day ago",
+    },
+  ]);
 
   return (
     <div className="bg-white rounded-xl p-6">
       {/* Welcome Banner */}
       <div className="bg-white -mt-6 -mx-6 p-6 mb-6 rounded-b-xl border-b border-gray-100">
         <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {user?.firstname || "Admin"}!
+          Welcome back, Admin!
         </h1>
         <p className="mt-2 text-gray-500">
           Here's what's happening with your eBook library today.

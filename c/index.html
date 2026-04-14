@@ -5,9 +5,231 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>occeread</title>
+    <style>
+      /* Error overlay styles */
+      .error-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #fff5f5;
+        color: #c00;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        padding: 20px;
+        z-index: 99999;
+        overflow: auto;
+        display: none;
+      }
+
+      .error-overlay.visible {
+        display: block;
+      }
+
+      .error-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border: 2px solid #c00;
+        border-radius: 8px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .error-title {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 16px;
+        color: #c00;
+      }
+
+      .error-message {
+        background: #f8f8f8;
+        border-left: 4px solid #c00;
+        padding: 12px;
+        margin-bottom: 16px;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .error-stack {
+        background: #f0f0f0;
+        padding: 12px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin-top: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .error-section {
+        margin-top: 20px;
+      }
+
+      .error-label {
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #333;
+      }
+
+      button {
+        margin-top: 16px;
+        padding: 8px 16px;
+        background: #c00;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      button:hover {
+        background: #a00;
+      }
+
+      .refresh-btn {
+        margin-left: 10px;
+        background: #666;
+      }
+
+      .refresh-btn:hover {
+        background: #444;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- Error overlay div -->
+    <div id="global-error-overlay" class="error-overlay">
+      <div class="error-container">
+        <div class="error-title">⚠️ Application Error</div>
+        <div class="error-section">
+          <div class="error-label">Error Message:</div>
+          <div id="error-message" class="error-message"></div>
+        </div>
+        <div class="error-section">
+          <div class="error-label">Stack Trace:</div>
+          <div id="error-stack" class="error-stack"></div>
+        </div>
+        <button onclick="location.reload()">Reload Page</button>
+        <button class="refresh-btn" onclick="clearErrorAndRetry()">
+          Clear & Retry
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // Store original error handlers
+      const originalOnError = window.onerror;
+      const originalOnUnhandledRejection = window.onunhandledrejection;
+
+      // Function to show error overlay
+      function showErrorOverlay(errorMessage, errorStack) {
+        const overlay = document.getElementById("global-error-overlay");
+        const messageEl = document.getElementById("error-message");
+        const stackEl = document.getElementById("error-stack");
+
+        if (overlay && messageEl && stackEl) {
+          messageEl.textContent = errorMessage || "Unknown error occurred";
+          stackEl.textContent = errorStack || "No stack trace available";
+          overlay.classList.add("visible");
+
+          // Also log to console for debugging
+          console.error("Global Error:", errorMessage);
+          console.error("Stack Trace:", errorStack);
+        }
+      }
+
+      // Clear error and retry function
+      window.clearErrorAndRetry = function () {
+        const overlay = document.getElementById("global-error-overlay");
+        if (overlay) {
+          overlay.classList.remove("visible");
+        }
+        // Try to re-mount the app by clearing and re-inserting the root
+        const root = document.getElementById("root");
+        if (root) {
+          // Clear root content
+          while (root.firstChild) {
+            root.removeChild(root.firstChild);
+          }
+          // Re-create script to reload module
+          const script = document.createElement("script");
+          script.type = "module";
+          script.src = "/src/main.jsx";
+          document.body.appendChild(script);
+        }
+      };
+
+      // Global error handler for runtime errors
+      window.onerror = function (message, source, lineno, colno, error) {
+        const errorMessage = `${message}\n at ${source}:${lineno}:${colno}`;
+        const errorStack = error ? error.stack : "No stack trace";
+        showErrorOverlay(errorMessage, errorStack);
+
+        // Call original handler if exists
+        if (originalOnError) {
+          originalOnError(message, source, lineno, colno, error);
+        }
+
+        // Prevent default browser error handling
+        return true;
+      };
+
+      // Global handler for unhandled promise rejections
+      window.onunhandledrejection = function (event) {
+        const error = event.reason;
+        const errorMessage =
+          error?.message || String(error) || "Unhandled Promise Rejection";
+        const errorStack = error?.stack || "No stack trace available";
+        showErrorOverlay(errorMessage, errorStack);
+
+        // Call original handler if exists
+        if (originalOnUnhandledRejection) {
+          originalOnUnhandledRejection(event);
+        }
+
+        // Prevent default browser error handling
+        event.preventDefault();
+      };
+
+      // Handle errors from React (if React is loaded)
+      window.addEventListener("error", function (event) {
+        // Check if it's a script loading error
+        if (
+          event.target &&
+          (event.target.tagName === "SCRIPT" || event.target.tagName === "LINK")
+        ) {
+          const errorMessage = `Failed to load resource: ${event.target.src || event.target.href}`;
+          showErrorOverlay(
+            errorMessage,
+            "Resource loading failed - check network connection and file paths",
+          );
+        }
+      });
+
+      // Check for React rendering errors after a delay
+      setTimeout(() => {
+        const root = document.getElementById("root");
+        if (root && root.children.length === 0) {
+          // Root is still empty after 3 seconds - likely an error
+          console.warn(
+            "Root element is still empty after 3 seconds - possible rendering error",
+          );
+          // Don't auto-show error overlay here as it might just be loading
+        }
+      }, 3000);
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,7 +1,6 @@
 // components/layout/Header.jsx
 import { Link, useLocation } from "react-router-dom";
 import { Home, Compass, Grid, Info, LogIn, Menu, X } from "lucide-react";
-import logo from "@/assets/images/logo.webp";
 import { useState, useEffect } from "react";
 
 const Header = () => {
@@ -34,6 +33,18 @@ const Header = () => {
     setIsMenuOpen(false);
   }, [location]);
 
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMenuOpen]);
+
   // Determine header styles based on scroll position and current page
   const getHeaderClasses = () => {
     if (isHomePage && !isScrolled) {
@@ -52,7 +63,7 @@ const Header = () => {
       : "text-textSecondary hover:text-primary";
   };
 
-  // Get OCC color based on scroll position
+  // Get OCC color based on scroll position - matches hero section style
   const getOCCColor = () => {
     if (isHomePage && !isScrolled) {
       return "text-blue-600"; // Light blue color
@@ -60,12 +71,27 @@ const Header = () => {
     return "text-primary"; // Default deep blue
   };
 
-  // Get eRead color based on scroll position
-  const getEReadColor = () => {
+  // Get eLibrary color based on scroll position - matches hero section
+  const getELibraryColor = () => {
     if (isHomePage && !isScrolled) {
       return "text-white";
     }
     return "text-textPrimary";
+  };
+
+  // Get the special 'e' letter style
+  const getELetterStyle = () => {
+    if (isHomePage && !isScrolled) {
+      return {
+        color: "white",
+        textShadow:
+          "0 0 4px #2563eb, 0 0 4px #2563eb, 0 0 4px #2563eb, 0 0 4px #2563eb, 0 0 4px #2563eb",
+      };
+    }
+    return {
+      color: "inherit",
+      textShadow: "none",
+    };
   };
 
   // Determine button styles for login
@@ -76,25 +102,43 @@ const Header = () => {
     return "bg-primary hover:bg-primaryDark text-white";
   };
 
+  // Determine mobile menu button color
+  const getMobileMenuButtonClasses = () => {
+    if (isHomePage && !isScrolled) {
+      return "text-white hover:bg-white/10";
+    }
+    return "text-textSecondary hover:bg-gray-100";
+  };
+
   return (
     <header className={getHeaderClasses()}>
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
-          {/* Logo and Brand */}
-          <Link to="/" className="flex items-center space-x-2 group">
-            <img
-              src={logo}
-              alt="OCC eRead"
-              className="w-8 h-8 object-contain"
-            />
-            <span className="text-2xl font-extrabold tracking-wider">
+          {/* Logo and Brand - Matching hero section style */}
+          <Link to="/" className="flex items-center space-x-3">
+            <span className="text-2xl font-black tracking-wider whitespace-nowrap">
               <span className={getOCCColor()}>OCC</span>
-              <span className={getEReadColor()}>eLibrary</span>
+              <span className="inline-flex items-baseline">
+                <span
+                  className={getELibraryColor()}
+                  style={{
+                    fontStyle: "italic",
+                    fontWeight: 900,
+                    fontSize: "1.1em",
+                    lineHeight: 1,
+                    letterSpacing: "-0.03em",
+                    marginRight: "1px",
+                  }}
+                >
+                  e
+                </span>
+                <span className={getELibraryColor()}>Library</span>
+              </span>
             </span>
           </Link>
 
           {/* Desktop Navigation Links - Centered */}
-          <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 transform -translate-x-1/2">
+          <nav className="hidden md:flex items-center space-x-6 lg:space-x-8 absolute left-1/2 transform -translate-x-1/2">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
@@ -130,14 +174,10 @@ const Header = () => {
             </Link>
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button - Always visible on mobile, styling changes based on scroll */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`md:hidden p-2 rounded-lg transition-colors ${
-              isHomePage && !isScrolled
-                ? "text-white hover:bg-white/10"
-                : "text-textSecondary hover:bg-gray-100"
-            }`}
+            className={`md:hidden p-2 rounded-lg transition-colors ${getMobileMenuButtonClasses()}`}
             aria-label="Toggle menu"
           >
             {isMenuOpen ? (
@@ -148,46 +188,88 @@ const Header = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - Fixed positioning relative to viewport */}
         {isMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 right-0 bg-white shadow-lg border-t border-borderLight animate-slideDown">
-            <div className="container mx-auto px-4 py-4">
-              {/* Mobile Navigation Links */}
-              <nav className="flex flex-col space-y-4 mb-4">
-                {navLinks.map((link) => {
-                  const Icon = link.icon;
-                  const isActive = location.pathname === link.path;
-                  return (
-                    <Link
-                      key={link.name}
-                      to={link.path}
-                      className={`flex items-center space-x-3 py-2 px-3 rounded-lg transition-colors ${
-                        isActive
-                          ? "bg-blue-50 text-blue-600 font-medium"
-                          : "text-textSecondary hover:bg-gray-50"
-                      }`}
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{link.name}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
+          <>
+            {/* Backdrop overlay */}
+            <div
+              className="fixed inset-0 bg-black/50 z-40 md:hidden"
+              style={{ top: 0, left: 0, right: 0, bottom: 0 }}
+              onClick={() => setIsMenuOpen(false)}
+            />
 
-              {/* Mobile CTA Button */}
-              <Link
-                to="/login"
-                className="flex items-center justify-center space-x-2 bg-primary hover:bg-primaryDark text-white px-4 py-3 rounded-lg transition-all duration-300 font-medium w-full"
+            {/* Mobile Menu Drawer - Slides from right side */}
+            <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 md:hidden animate-slideInRight">
+              {/* Close button inside drawer */}
+              <button
                 onClick={() => setIsMenuOpen(false)}
+                className="absolute top-4 right-4 p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                aria-label="Close menu"
               >
-                <LogIn className="w-4 h-4" />
-                <span>Admin Login</span>
-              </Link>
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex flex-col h-full pt-16 pb-6">
+                {/* Mobile Navigation Links */}
+                <nav className="flex-1 px-4 space-y-1">
+                  {navLinks.map((link) => {
+                    const Icon = link.icon;
+                    const isActive = location.pathname === link.path;
+                    return (
+                      <Link
+                        key={link.name}
+                        to={link.path}
+                        className={`flex items-center space-x-3 py-3 px-4 rounded-xl transition-colors ${
+                          isActive
+                            ? "bg-blue-50 text-blue-600 font-medium"
+                            : "text-textSecondary hover:bg-gray-50"
+                        }`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="font-medium text-base">
+                          {link.name}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+
+                {/* Divider */}
+                <div className="border-t border-gray-100 my-4 mx-4" />
+
+                {/* Mobile CTA Button */}
+                <div className="px-4 mt-4">
+                  <Link
+                    to="/login"
+                    className="flex items-center justify-center space-x-2 bg-primary hover:bg-primaryDark text-white px-4 py-3 rounded-xl transition-all duration-300 font-medium w-full"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Admin Login</span>
+                  </Link>
+                </div>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
+
+      {/* Add animation styles */}
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
+        
+        .animate-slideInRight {
+          animation: slideInRight 0.3s ease-out;
+        }
+      `}</style>
     </header>
   );
 };

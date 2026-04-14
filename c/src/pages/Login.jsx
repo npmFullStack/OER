@@ -2,8 +2,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, Mail, LogIn, Eye, EyeOff } from "lucide-react";
-import toast from "react-hot-toast";
-import { useAuth } from "@/context/AuthContext"; // Changed to useAuth
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import heroBg from "@/assets/images/heroBg.png";
@@ -14,10 +12,7 @@ const Login = () => {
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { login } = useAuth(); // Get login function from context
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,63 +20,11 @@ const Login = () => {
       ...formData,
       [name]: value,
     });
-    if (error) setError("");
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!formData.email || !formData.password) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    const loadingToast = toast.loading("Signing in...");
-
-    try {
-      // Use the context login function
-      const result = await login(formData.email, formData.password);
-
-      toast.dismiss(loadingToast);
-
-      if (result.success) {
-        toast.success("Successfully logged in!", {
-          icon: (
-            <svg
-              className="w-5 h-5 text-green-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          ),
-          duration: 3000,
-        });
-
-        // Navigate directly to dashboard - no timeout needed
-        navigate("/dashboard");
-      } else {
-        toast.error(result.message || "Login failed");
-      }
-    } catch (err) {
-      toast.dismiss(loadingToast);
-      const errorMessage =
-        err.response?.data?.message || "An error occurred. Please try again.";
-      setError(errorMessage);
-      toast.error(errorMessage);
-      console.error("Login error:", err);
-    } finally {
-      setLoading(false);
-    }
+    navigate("/dashboard");
   };
 
   return (
@@ -144,7 +87,7 @@ const Login = () => {
                       </label>
                       <div className="relative">
                         <input
-                          type="email"
+                          type="text"
                           name="email"
                           value={formData.email}
                           onChange={handleChange}
@@ -152,7 +95,6 @@ const Login = () => {
                             focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
                             transition-all duration-200 text-gray-900 placeholder-gray-600"
                           placeholder="Enter your email"
-                          required
                         />
                         <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-600" />
                       </div>
@@ -174,7 +116,6 @@ const Login = () => {
                             focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
                             transition-all duration-200 text-gray-900 placeholder-gray-600"
                           placeholder="Enter your password"
-                          required
                         />
                         <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-600" />
                         <button
@@ -193,7 +134,7 @@ const Login = () => {
                     </div>
                   </div>
 
-                  {/* Remember Me Only - No Forgot Password */}
+                  {/* Remember Me */}
                   <div className="flex items-center">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -208,25 +149,15 @@ const Login = () => {
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    disabled={loading}
                     className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 
                       text-white font-medium rounded-lg transition-all duration-200 
                       inline-flex items-center justify-center gap-2 text-lg 
-                      shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-not-allowed
+                      shadow-lg hover:shadow-xl
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
                       focus:ring-offset-transparent"
                   >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Signing In...</span>
-                      </>
-                    ) : (
-                      <>
-                        <LogIn className="w-5 h-5" />
-                        <span>Sign In</span>
-                      </>
-                    )}
+                    <LogIn className="w-5 h-5" />
+                    <span>Sign In</span>
                   </button>
                 </form>
               </div>

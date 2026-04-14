@@ -14,10 +14,41 @@ import {
   Eye,
   ArrowLeft,
 } from "lucide-react";
-import { ebookService } from "@/services/ebookService";
-import programService from "@/services/programService";
-import toast from "react-hot-toast";
 import * as pdfjsLib from "pdfjs-dist";
+
+const PROGRAMS = [
+  {
+    id: 1,
+    acronym: "BSIT",
+    name: "Bachelor of Science in Information Technology",
+    color: "#3B82F6",
+  },
+  {
+    id: 2,
+    acronym: "BSBA-FM",
+    name: "Bachelor of Science in Business Administration - Financial Management",
+    color: "#10B981",
+  },
+  {
+    id: 3,
+    acronym: "BEED",
+    name: "Bachelor in Elementary Education",
+    color: "#F59E0B",
+  },
+  {
+    id: 4,
+    acronym: "BSED",
+    name: "Bachelor of Secondary Education",
+    color: "#8B5CF6",
+  },
+];
+
+const YEAR_LEVELS = [
+  { value: "1", label: "1st Year" },
+  { value: "2", label: "2nd Year" },
+  { value: "3", label: "3rd Year" },
+  { value: "4", label: "4th Year" },
+];
 
 const UpdateEbook = () => {
   const navigate = useNavigate();
@@ -26,107 +57,27 @@ const UpdateEbook = () => {
   const existingEbook = location.state?.ebook;
 
   const [formData, setFormData] = useState({
-    title: "",
-    programId: "",
-    yearLevel: "",
+    title: existingEbook?.title || "",
+    programId: existingEbook?.program_id?.toString() || "",
+    yearLevel: existingEbook?.year_level?.toString() || "",
   });
 
-  const [programs, setPrograms] = useState([]);
-  const [loadingPrograms, setLoadingPrograms] = useState(true);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(!existingEbook);
   const [coverPreview, setCoverPreview] = useState(null);
-  const [existingCover, setExistingCover] = useState(null);
+  const [existingCover, setExistingCover] = useState(
+    existingEbook?.cover_url || null,
+  );
   const [extractingCover, setExtractingCover] = useState(false);
-  const [removeCover, setRemoveCover] = useState(false);
 
-  // Fetch programs and ebook details on mount
-  useEffect(() => {
-    fetchPrograms();
-    if (!existingEbook && id) {
-      fetchEbookDetails();
-    } else if (existingEbook) {
-      populateForm(existingEbook);
-    }
-  }, []);
-
-  // Initialize pdf.js worker
   useEffect(() => {
     const pdfjsVersion = pdfjsLib.version;
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
-    console.log("PDF.js worker initialized with version:", pdfjsVersion);
   }, []);
 
-  const fetchPrograms = async () => {
-    try {
-      setLoadingPrograms(true);
-      const response = await programService.getAll();
-      if (response.success) {
-        setPrograms(response.data || []);
-      } else {
-        toast.error("Failed to load programs");
-      }
-    } catch (error) {
-      console.error("Error fetching programs:", error);
-      toast.error("Failed to load programs");
-    } finally {
-      setLoadingPrograms(false);
-    }
-  };
-
-  const fetchEbookDetails = async () => {
-    try {
-      setFetchLoading(true);
-      const response = await ebookService.getEbook(id);
-      if (response.success) {
-        populateForm(response.data);
-      } else {
-        toast.error("Failed to fetch ebook details");
-        navigate("/my-ebooks");
-      }
-    } catch (error) {
-      console.error("Error fetching ebook:", error);
-      toast.error("Error loading ebook details");
-      navigate("/my-ebooks");
-    } finally {
-      setFetchLoading(false);
-    }
-  };
-
-  const populateForm = (ebook) => {
-    setFormData({
-      title: ebook.title || "",
-      programId: ebook.program_id?.toString() || "",
-      yearLevel: ebook.year_level?.toString() || "",
-    });
-
-    // Set existing cover if available
-    if (ebook.cover_url) {
-      const baseUrl =
-        import.meta.env.VITE_API_URL?.replace("/api", "") ||
-        "http://192.168.254.106:5000";
-      const coverUrl = ebook.cover_url.startsWith("http")
-        ? ebook.cover_url
-        : `${baseUrl}${ebook.cover_url}`;
-      setExistingCover(coverUrl);
-    }
-  };
-
-  // Year levels
-  const yearLevels = [
-    { value: "1", label: "1st Year" },
-    { value: "2", label: "2nd Year" },
-    { value: "3", label: "3rd Year" },
-    { value: "4", label: "4th Year" },
-  ];
-
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const renderPdfPage = async (arrayBuffer) => {
@@ -156,7 +107,6 @@ const UpdateEbook = () => {
 
   const extractPdfCover = async (file) => {
     setExtractingCover(true);
-
     const arrayBuffer = await file.arrayBuffer();
     const pdfjsVersion = pdfjsLib.version;
 
@@ -167,25 +117,19 @@ const UpdateEbook = () => {
       `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`,
     ];
 
-    let lastError = null;
     for (const workerUrl of workerUrls) {
       try {
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
         const dataUrl = await renderPdfPage(arrayBuffer.slice(0));
         setCoverPreview(dataUrl);
-        setExistingCover(null); // Remove existing cover preview
-        setRemoveCover(true); // Mark that we're replacing the cover
-        toast.success("Cover page extracted successfully!");
+        setExistingCover(null);
         setExtractingCover(false);
         return;
       } catch (err) {
         console.warn(`Worker failed with ${workerUrl}:`, err.message);
-        lastError = err;
       }
     }
 
-    console.error("All worker URLs failed. Last error:", lastError);
-    toast.error("Could not extract cover page, but you can still update");
     setCoverPreview(null);
     setExtractingCover(false);
   };
@@ -220,105 +164,27 @@ const UpdateEbook = () => {
     setFile(null);
     setCoverPreview(null);
     setFileError("");
-    // Don't remove existing cover when just removing new file
-  };
-
-  const handleRemoveExistingCover = () => {
-    setExistingCover(null);
-    setRemoveCover(true);
-    toast.success("Cover will be removed on update");
   };
 
   const truncateFileName = (name, maxLength = 30) => {
     if (name.length <= maxLength) return name;
     const extension = name.split(".").pop();
     const nameWithoutExt = name.substring(0, name.lastIndexOf("."));
-    const truncatedName = nameWithoutExt.substring(
-      0,
-      maxLength - 3 - extension.length,
-    );
-    return `${truncatedName}...${extension}`;
+    return `${nameWithoutExt.substring(0, maxLength - 3 - extension.length)}...${extension}`;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!formData.title || !formData.programId || !formData.yearLevel) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-
     setLoading(true);
-
-    const updateData = new FormData();
-    updateData.append("title", formData.title);
-    updateData.append("programId", formData.programId);
-    updateData.append("yearLevel", formData.yearLevel);
-
-    // Add new file if uploaded
-    if (file) {
-      updateData.append("ebook", file);
-    }
-
-    // Handle cover image
-    if (coverPreview) {
-      // New cover extracted from new PDF
-      try {
-        const response = await fetch(coverPreview);
-        const blob = await response.blob();
-        const coverFile = new File([blob], "cover.jpg", { type: "image/jpeg" });
-        updateData.append("cover", coverFile);
-        console.log("✅ New cover image attached");
-      } catch (err) {
-        console.error("Failed to process cover image:", err);
-      }
-    } else if (removeCover && !existingCover) {
-      // User wants to remove the cover
-      updateData.append("removeCover", "true");
-    }
-
-    const loadingToast = toast.loading("Updating eBook...");
-
-    try {
-      const response = await ebookService.updateEbook(id, updateData);
-
-      toast.dismiss(loadingToast);
-
-      if (response.success) {
-        toast.success("eBook updated successfully");
-
-        setTimeout(() => {
-          navigate(`/ebook-record/${id}`);
-        }, 2000);
-      } else {
-        toast.error(response.message || "Update failed");
-      }
-    } catch (error) {
-      toast.dismiss(loadingToast);
-      const errorMessage =
-        error.response?.data?.message || "An error occurred during update";
-      toast.error(errorMessage);
-      console.error("Update error:", error);
-    } finally {
+    setTimeout(() => {
       setLoading(false);
-    }
+      navigate(`/ebook-record/${id}`);
+    }, 1000);
   };
 
-  // Get selected program for preview
-  const selectedProgram = programs.find(
+  const selectedProgram = PROGRAMS.find(
     (p) => p.id === parseInt(formData.programId),
   );
-
-  if (fetchLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading ebook details...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-xl p-6">
@@ -340,7 +206,7 @@ const UpdateEbook = () => {
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Form (2/3 width) */}
+        {/* Left Column - Form */}
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* File Upload Area */}
@@ -399,7 +265,6 @@ const UpdateEbook = () => {
                     </button>
                   </div>
 
-                  {/* Cover Preview from new file */}
                   {extractingCover ? (
                     <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                       <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 animate-pulse"></div>
@@ -459,7 +324,7 @@ const UpdateEbook = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={handleRemoveExistingCover}
+                      onClick={() => setExistingCover(null)}
                       className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                       title="Remove cover"
                     >
@@ -516,15 +381,10 @@ const UpdateEbook = () => {
                         value={formData.programId}
                         onChange={handleChange}
                         required
-                        disabled={loadingPrograms}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white disabled:bg-gray-100"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
                       >
-                        <option value="">
-                          {loadingPrograms
-                            ? "Loading programs..."
-                            : "Select Program"}
-                        </option>
-                        {programs.map((program) => (
+                        <option value="">Select Program</option>
+                        {PROGRAMS.map((program) => (
                           <option key={program.id} value={program.id}>
                             {program.acronym} - {program.name}
                           </option>
@@ -547,7 +407,7 @@ const UpdateEbook = () => {
                         className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
                       >
                         <option value="">Select Year Level</option>
-                        {yearLevels.map((year) => (
+                        {YEAR_LEVELS.map((year) => (
                           <option key={year.value} value={year.value}>
                             {year.label}
                           </option>
@@ -557,7 +417,7 @@ const UpdateEbook = () => {
                   </div>
                 </div>
 
-                {/* Program Preview (if program selected) */}
+                {/* Program Preview */}
                 {selectedProgram && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700 mb-2">
@@ -588,7 +448,7 @@ const UpdateEbook = () => {
             <div className="flex gap-4">
               <button
                 type="submit"
-                disabled={loading || extractingCover || loadingPrograms}
+                disabled={loading || extractingCover}
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? "Updating..." : "Update eBook"}
@@ -604,7 +464,7 @@ const UpdateEbook = () => {
           </form>
         </div>
 
-        {/* Right Column - Instructions (1/3 width) */}
+        {/* Right Column - Instructions */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -612,68 +472,41 @@ const UpdateEbook = () => {
               Update Instructions
             </h3>
 
-            {/* Instruction Steps */}
             <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
-                  1
+              {[
+                {
+                  n: 1,
+                  title: "Update PDF (Optional)",
+                  desc: "Upload a new PDF file only if you want to replace the current one",
+                },
+                {
+                  n: 2,
+                  title: "Cover Page Updates",
+                  desc: "New PDF = new cover automatically. You can also remove the current cover",
+                },
+                {
+                  n: 3,
+                  title: "Edit Details",
+                  desc: "Update title, program, or year level as needed",
+                },
+                {
+                  n: 4,
+                  title: "Save Changes",
+                  desc: "Click update and wait for confirmation",
+                },
+              ].map(({ n, title, desc }) => (
+                <div key={n} className="flex gap-3">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
+                    {n}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{title}</p>
+                    <p className="text-xs text-gray-500 mt-1">{desc}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Update PDF (Optional)
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Upload a new PDF file only if you want to replace the
-                    current one
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
-                  2
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Cover Page Updates
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    New PDF = new cover automatically. You can also remove the
-                    current cover
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
-                  3
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Edit Details
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Update title, program, or year level as needed
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
-                  4
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    Save Changes
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Click update and wait for confirmation
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Tips Box */}
             <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
               <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                 <Eye className="w-4 h-4" />

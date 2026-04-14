@@ -11,38 +11,123 @@ import {
   ArrowLeft,
   SlidersHorizontal,
 } from "lucide-react";
-import { ebookService } from "@/services/ebookService";
 import noSearchFound from "@/assets/images/noSearchFound.png";
+
+// ── Mock Data ──────────────────────────────────────────────────────────────────
+const MOCK_EBOOKS = [
+  {
+    id: 1,
+    title: "Introduction to Information Technology",
+    cover_url: null,
+    downloads: 1234,
+    created_at: "2024-01-15T10:00:00Z",
+    program_id: "1",
+    program_acronym: "BSIT",
+    program_name: "Information Technology",
+    program_color: "#ef4444",
+    year_level: "1",
+    uploader_name: "Prof. Smith",
+  },
+  {
+    id: 2,
+    title: "Financial Management Fundamentals",
+    cover_url: null,
+    downloads: 892,
+    created_at: "2024-02-20T10:00:00Z",
+    program_id: "2",
+    program_acronym: "BSBA-FM",
+    program_name: "Financial Management",
+    program_color: "#f59e0b",
+    year_level: "2",
+    uploader_name: "Prof. Johnson",
+  },
+  {
+    id: 3,
+    title: "Marketing Strategies in Digital Age",
+    cover_url: null,
+    downloads: 756,
+    created_at: "2024-01-10T10:00:00Z",
+    program_id: "3",
+    program_acronym: "BSBA-MM",
+    program_name: "Marketing Management",
+    program_color: "#f59e0b",
+    year_level: "3",
+    uploader_name: "Prof. Williams",
+  },
+  {
+    id: 4,
+    title: "Child and Adolescent Development",
+    cover_url: null,
+    downloads: 567,
+    created_at: "2024-03-01T10:00:00Z",
+    program_id: "4",
+    program_acronym: "BEED",
+    program_name: "Elementary Education",
+    program_color: "#3b82f6",
+    year_level: "2",
+    uploader_name: "Prof. Brown",
+  },
+  {
+    id: 5,
+    title: "Teaching Methods for Secondary Education",
+    cover_url: null,
+    downloads: 678,
+    created_at: "2024-02-25T10:00:00Z",
+    program_id: "5",
+    program_acronym: "BSED",
+    program_name: "Secondary Education",
+    program_color: "#3b82f6",
+    year_level: "3",
+    uploader_name: "Prof. Davis",
+  },
+  {
+    id: 6,
+    title: "Database Management Systems",
+    cover_url: null,
+    downloads: 2345,
+    created_at: "2024-01-05T10:00:00Z",
+    program_id: "1",
+    program_acronym: "BSIT",
+    program_name: "Information Technology",
+    program_color: "#ef4444",
+    year_level: "2",
+    uploader_name: "Prof. Wilson",
+  },
+  {
+    id: 7,
+    title: "Web Development Fundamentals",
+    cover_url: null,
+    downloads: 1876,
+    created_at: "2024-02-10T10:00:00Z",
+    program_id: "1",
+    program_acronym: "BSIT",
+    program_name: "Information Technology",
+    program_color: "#ef4444",
+    year_level: "1",
+    uploader_name: "Prof. Martinez",
+  },
+  {
+    id: 8,
+    title: "Corporate Finance",
+    cover_url: null,
+    downloads: 543,
+    created_at: "2024-03-10T10:00:00Z",
+    program_id: "2",
+    program_acronym: "BSBA-FM",
+    program_name: "Financial Management",
+    program_color: "#f59e0b",
+    year_level: "3",
+    uploader_name: "Prof. Taylor",
+  },
+];
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const getCoverUrl = (book) => {
   if (!book.cover_url) return null;
-
-  // If it's already a full URL, use it
   if (book.cover_url.startsWith("http")) {
     return book.cover_url;
   }
-
-  // Otherwise, construct from base URL
-  const baseUrl =
-    import.meta.env.VITE_API_URL?.replace("/api", "") ||
-    "http://localhost:5000";
-  return `${baseUrl}${book.cover_url}`;
-};
-
-const getCourseBadgeColor = (courseCode) => {
-  switch ((courseCode || "").toUpperCase()) {
-    case "BSED":
-    case "BEED":
-      return "bg-blue-100 text-blue-700";
-    case "BSBA-FM":
-    case "BSBA-MM":
-      return "bg-yellow-100 text-yellow-700";
-    case "BSIT":
-      return "bg-red-100 text-red-700";
-    default:
-      return "bg-indigo-50 text-indigo-700";
-  }
+  return book.cover_url;
 };
 
 const formatDownloads = (n) => {
@@ -50,28 +135,6 @@ const formatDownloads = (n) => {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
   return String(n);
 };
-
-// ── courses & years ───────────────────────────────────────────────────────────
-const COURSES = [
-  { value: "BSIT", label: "BS Information Technology" },
-  { value: "BSBA-FM", label: "BSBA Financial Management" },
-  { value: "BSBA-MM", label: "BSBA Marketing Management" },
-  { value: "BEED", label: "B Elementary Education" },
-  { value: "BSED", label: "B Secondary Education" },
-];
-
-const YEAR_LEVELS = [
-  { value: "1", label: "1st Year" },
-  { value: "2", label: "2nd Year" },
-  { value: "3", label: "3rd Year" },
-  { value: "4", label: "4th Year" },
-];
-
-const SORT_OPTIONS = [
-  { value: "popular", label: "Most Downloaded" },
-  { value: "recent", label: "Recently Added" },
-  { value: "title", label: "Title A–Z" },
-];
 
 // ── Book Card ─────────────────────────────────────────────────────────────────
 const BookCard = ({ book, onClick }) => {
@@ -81,7 +144,7 @@ const BookCard = ({ book, onClick }) => {
   const coverSrc = getCoverUrl(book);
   const showCover = coverSrc && !imgError;
 
-  // Use program color from database or default to blue
+  // Use program color from mock data or default to blue
   const programColor = book.program_color || "#3b82f6";
 
   return (
@@ -135,7 +198,7 @@ const BookCard = ({ book, onClick }) => {
         </h3>
 
         <div className="mt-auto flex items-center justify-between pt-2 border-t border-gray-100">
-          {/* Updated badge to use program color from database */}
+          {/* Badge using program color from mock data */}
           <span
             className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white"
             style={{ backgroundColor: programColor }}
@@ -174,21 +237,24 @@ const SearchResults = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch all ebooks once
+  // Load mock data
   useEffect(() => {
-    const fetchEbooks = async () => {
+    // Simulate API loading delay
+    const loadData = async () => {
       try {
         setLoading(true);
-        const data = await ebookService.getEbooks();
-        setAllEbooks(Array.isArray(data) ? data : data.data || []);
+        // Simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setAllEbooks(MOCK_EBOOKS);
+        setError(null);
       } catch (err) {
-        console.error("Failed to fetch ebooks:", err);
+        console.error("Failed to load ebooks:", err);
         setError("Failed to load ebooks. Please try again.");
       } finally {
         setLoading(false);
       }
     };
-    fetchEbooks();
+    loadData();
   }, []);
 
   // Client-side filter + sort

@@ -8,14 +8,217 @@ import {
   BookOpen,
   Download,
   Calendar,
-  GraduationCap,
   AlertCircle,
   Eye,
   MoreVertical,
 } from "lucide-react";
-import programService from "@/services/programService";
-import { ebookService } from "@/services/ebookService";
 import toast from "react-hot-toast";
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+const PROGRAMS = [
+  {
+    id: "1",
+    name: "Bachelor of Science in Information Technology",
+    acronym: "BSIT",
+    color: "#3b82f6",
+    created_at: "2023-01-15T08:00:00Z",
+  },
+  {
+    id: "2",
+    name: "Bachelor of Science in Computer Science",
+    acronym: "BSCS",
+    color: "#10b981",
+    created_at: "2023-02-20T08:00:00Z",
+  },
+  {
+    id: "3",
+    name: "Bachelor of Science in Computer Engineering",
+    acronym: "BSCpE",
+    color: "#f59e0b",
+    created_at: "2023-03-10T08:00:00Z",
+  },
+  {
+    id: "4",
+    name: "Bachelor of Science in Electronics Engineering",
+    acronym: "BSECE",
+    color: "#8b5cf6",
+    created_at: "2023-04-05T08:00:00Z",
+  },
+  {
+    id: "5",
+    name: "Bachelor of Science in Electrical Engineering",
+    acronym: "BSEE",
+    color: "#ef4444",
+    created_at: "2023-05-12T08:00:00Z",
+  },
+  {
+    id: "6",
+    name: "Bachelor of Science in Mechanical Engineering",
+    acronym: "BSME",
+    color: "#06b6d4",
+    created_at: "2023-06-18T08:00:00Z",
+  },
+];
+
+const ALL_EBOOKS = [
+  {
+    id: "1",
+    program_id: "1",
+    title: "Introduction to Programming",
+    file_name: "intro-programming.pdf",
+    file_size: 2048000,
+    file_url: "#",
+    cover_url: null,
+    downloads: 342,
+    year_level: 1,
+    created_at: "2024-01-10T08:00:00Z",
+    uploader_name: "Prof. Santos",
+  },
+  {
+    id: "2",
+    program_id: "1",
+    title: "Data Structures and Algorithms",
+    file_name: "dsa.pdf",
+    file_size: 3145728,
+    file_url: "#",
+    cover_url: null,
+    downloads: 289,
+    year_level: 2,
+    created_at: "2024-01-15T08:00:00Z",
+    uploader_name: "Prof. Reyes",
+  },
+  {
+    id: "3",
+    program_id: "1",
+    title: "Database Management Systems",
+    file_name: "dbms.pdf",
+    file_size: 4194304,
+    file_url: "#",
+    cover_url: null,
+    downloads: 412,
+    year_level: 2,
+    created_at: "2024-02-01T08:00:00Z",
+    uploader_name: "Prof. Lim",
+  },
+  {
+    id: "4",
+    program_id: "2",
+    title: "Discrete Mathematics",
+    file_name: "discrete-math.pdf",
+    file_size: 5242880,
+    file_url: "#",
+    cover_url: null,
+    downloads: 198,
+    year_level: 1,
+    created_at: "2024-01-20T08:00:00Z",
+    uploader_name: "Prof. Garcia",
+  },
+  {
+    id: "5",
+    program_id: "2",
+    title: "Operating Systems Concepts",
+    file_name: "os-concepts.pdf",
+    file_size: 6291456,
+    file_url: "#",
+    cover_url: null,
+    downloads: 321,
+    year_level: 3,
+    created_at: "2024-02-10T08:00:00Z",
+    uploader_name: "Prof. Cruz",
+  },
+  {
+    id: "6",
+    program_id: "3",
+    title: "Digital Logic Design",
+    file_name: "digital-logic.pdf",
+    file_size: 3670016,
+    file_url: "#",
+    cover_url: null,
+    downloads: 156,
+    year_level: 1,
+    created_at: "2024-03-01T08:00:00Z",
+    uploader_name: "Prof. Torres",
+  },
+  {
+    id: "7",
+    program_id: "3",
+    title: "Microprocessors and Microcontrollers",
+    file_name: "microprocessors.pdf",
+    file_size: 4718592,
+    file_url: "#",
+    cover_url: null,
+    downloads: 234,
+    year_level: 3,
+    created_at: "2024-03-15T08:00:00Z",
+    uploader_name: "Prof. Navarro",
+  },
+  {
+    id: "8",
+    program_id: "1",
+    title: "Web Development Fundamentals",
+    file_name: "web-dev.pdf",
+    file_size: 2621440,
+    file_url: "#",
+    cover_url: null,
+    downloads: 567,
+    year_level: 2,
+    created_at: "2024-04-01T08:00:00Z",
+    uploader_name: "Prof. Santos",
+  },
+  {
+    id: "9",
+    program_id: "2",
+    title: "Artificial Intelligence",
+    file_name: "ai-fundamentals.pdf",
+    file_size: 7340032,
+    file_url: "#",
+    cover_url: null,
+    downloads: 445,
+    year_level: 4,
+    created_at: "2024-04-15T08:00:00Z",
+    uploader_name: "Prof. Reyes",
+  },
+  {
+    id: "10",
+    program_id: "4",
+    title: "Electronic Circuits Analysis",
+    file_name: "circuits.pdf",
+    file_size: 5767168,
+    file_url: "#",
+    cover_url: null,
+    downloads: 123,
+    year_level: 2,
+    created_at: "2024-05-01T08:00:00Z",
+    uploader_name: "Prof. Dela Cruz",
+  },
+  {
+    id: "11",
+    program_id: "1",
+    title: "Software Engineering",
+    file_name: "software-eng.pdf",
+    file_size: 3932160,
+    file_url: "#",
+    cover_url: null,
+    downloads: 378,
+    year_level: 3,
+    created_at: "2024-05-10T08:00:00Z",
+    uploader_name: "Prof. Lim",
+  },
+  {
+    id: "12",
+    program_id: "2",
+    title: "Machine Learning Basics",
+    file_name: "ml-basics.pdf",
+    file_size: 8388608,
+    file_url: "#",
+    cover_url: null,
+    downloads: 512,
+    year_level: 4,
+    created_at: "2024-05-20T08:00:00Z",
+    uploader_name: "Prof. Garcia",
+  },
+];
+// ─────────────────────────────────────────────────────────────────────────────
 
 const formatDownloads = (n) => {
   if (!n && n !== 0) return "0";
@@ -50,7 +253,21 @@ const ProgramDetails = () => {
   const menuRef = useRef(null);
 
   useEffect(() => {
-    fetchProgramDetails();
+    // Simulate async fetch from mock data
+    const timer = setTimeout(() => {
+      const foundProgram = PROGRAMS.find((p) => String(p.id) === String(id));
+      if (foundProgram) {
+        setProgram(foundProgram);
+        const programEbooks = ALL_EBOOKS.filter(
+          (e) => String(e.program_id) === String(id),
+        );
+        setEbooks(programEbooks);
+      } else {
+        setError("Program not found.");
+      }
+      setLoading(false);
+    }, 400);
+    return () => clearTimeout(timer);
   }, [id]);
 
   useEffect(() => {
@@ -59,45 +276,16 @@ const ProgramDetails = () => {
         setShowActionMenu(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const fetchProgramDetails = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch program details
-      const programResponse = await programService.getById(id);
-      if (!programResponse.success) {
-        throw new Error(programResponse.message || "Failed to load program");
-      }
-      setProgram(programResponse.data);
-
-      // Fetch ebooks for this program
-      const ebooksResponse = await ebookService.getEbooksByProgram(id);
-      if (ebooksResponse.success) {
-        setEbooks(ebooksResponse.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch program details:", err);
-      if (err.response?.status === 404) {
-        setError("Program not found.");
-      } else {
-        setError("Failed to load program details. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleEdit = () => {
     setShowActionMenu(false);
     navigate(`/programs/edit/${id}`);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     setShowActionMenu(false);
     if (
       !window.confirm(
@@ -106,54 +294,28 @@ const ProgramDetails = () => {
     ) {
       return;
     }
-
-    try {
-      const response = await programService.delete(id);
-      if (response.success) {
-        toast.success("Program deleted successfully");
-        navigate("/programs");
-      } else {
-        toast.error(response.message || "Failed to delete program");
-      }
-    } catch (error) {
-      console.error("Error deleting program:", error);
-      toast.error(error.response?.data?.message || "Failed to delete program");
-    }
+    toast.success("Program deleted successfully");
+    navigate("/programs");
   };
 
   const handleDownload = async (ebookId, ebookTitle, fileName) => {
     const toastId = toast.loading("Preparing download...");
-    try {
-      const blob = await ebookService.downloadEbook(ebookId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName || `${ebookTitle}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      toast.success("Download started!", { id: toastId });
-
-      // Update download count locally
-      setEbooks((prev) =>
-        prev.map((ebook) =>
-          ebook.id === ebookId
-            ? { ...ebook, downloads: (ebook.downloads || 0) + 1 }
-            : ebook,
-        ),
-      );
-    } catch (err) {
-      console.error("Download failed:", err);
-      toast.error("Download failed. Please try again.", { id: toastId });
-    }
+    await new Promise((r) => setTimeout(r, 800));
+    toast.success("Download started!", { id: toastId });
+    setEbooks((prev) =>
+      prev.map((ebook) =>
+        ebook.id === ebookId
+          ? { ...ebook, downloads: (ebook.downloads || 0) + 1 }
+          : ebook,
+      ),
+    );
   };
 
   const handleRead = (fileUrl) => {
-    if (fileUrl) {
+    if (fileUrl && fileUrl !== "#") {
       window.open(fileUrl, "_blank");
     } else {
-      toast.error("PDF file not available");
+      toast.error("PDF not available in demo mode");
     }
   };
 
@@ -166,16 +328,11 @@ const ProgramDetails = () => {
     });
   };
 
-  // Calculate totals
   const totalEbooks = ebooks.length;
-  const totalDownloads = ebooks.reduce(
-    (sum, ebook) => sum + (ebook.downloads || 0),
-    0,
-  );
+  const totalDownloads = ebooks.reduce((sum, e) => sum + (e.downloads || 0), 0);
 
   return (
     <div className="relative z-10 min-h-screen flex flex-col rounded-xl bg-white">
-      {/* Main content */}
       <main className="flex-1 py-8">
         <div className="container mx-auto px-4 max-w-7xl">
           {/* Back button */}
@@ -250,6 +407,10 @@ const ProgramDetails = () => {
                         <span className="font-mono text-sm font-medium text-gray-500">
                           {program.acronym}
                         </span>
+                        <span
+                          className="w-3 h-3 rounded-full inline-block"
+                          style={{ backgroundColor: program.color }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -264,7 +425,6 @@ const ProgramDetails = () => {
                       <MoreVertical className="w-4 h-4" />
                     </button>
 
-                    {/* Dropdown Menu */}
                     {showActionMenu && (
                       <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                         <button
@@ -356,7 +516,7 @@ const ProgramDetails = () => {
                         key={ebook.id}
                         className="group border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300"
                       >
-                        {/* eBook Cover - Updated to navigate to EbookRecord */}
+                        {/* eBook Cover */}
                         <div
                           onClick={() => navigate(`/ebook-record/${ebook.id}`)}
                           className="block aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden cursor-pointer"
@@ -367,13 +527,7 @@ const ProgramDetails = () => {
                               alt={ebook.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                               onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = "";
-                                e.target.parentElement.innerHTML = `
-                                  <div class="w-full h-full flex items-center justify-center">
-                                    <BookOpen class="w-12 h-12 text-gray-400" />
-                                  </div>
-                                `;
+                                e.target.style.display = "none";
                               }}
                             />
                           ) : (
@@ -382,7 +536,6 @@ const ProgramDetails = () => {
                             </div>
                           )}
 
-                          {/* Year Level Badge */}
                           {ebook.year_level && (
                             <span className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-xs font-medium px-2 py-1 rounded-full shadow-sm">
                               {yearSuffix(ebook.year_level)}
@@ -390,7 +543,7 @@ const ProgramDetails = () => {
                           )}
                         </div>
 
-                        {/* eBook Info - Updated title link to navigate to EbookRecord */}
+                        {/* eBook Info */}
                         <div className="p-4">
                           <div
                             onClick={() =>
@@ -437,7 +590,6 @@ const ProgramDetails = () => {
                             </button>
                           </div>
 
-                          {/* Uploader Info */}
                           <p className="mt-3 text-xs text-gray-400">
                             Uploaded by {ebook.uploader_name || "Unknown"}
                           </p>
