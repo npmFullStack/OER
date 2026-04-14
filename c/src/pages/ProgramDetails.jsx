@@ -10,9 +10,12 @@ import {
   Calendar,
   AlertCircle,
   Eye,
-  MoreVertical,
+  ChevronDown,
+  Library,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import CustomSelect from "@/components/Select";
+import Pagination from "@/components/Pagination";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const PROGRAMS = [
@@ -218,6 +221,63 @@ const ALL_EBOOKS = [
     uploader_name: "Prof. Garcia",
   },
 ];
+
+const ALL_BOOKS = [
+  {
+    id: 1,
+    program_id: "1",
+    title: "Introduction to Computer Science",
+    author: "John Smith, Jane Doe",
+    call_number: "CS 101 .S65 2024",
+    isbn: "978-0-13-123456-7",
+    year: 2024,
+  },
+  {
+    id: 2,
+    program_id: "1",
+    title: "Data Structures and Algorithms",
+    author: "Robert Johnson",
+    call_number: "CS 201 .J64 2023",
+    isbn: "978-0-13-234567-8",
+    year: 2023,
+  },
+  {
+    id: 3,
+    program_id: "2",
+    title: "Modern Web Development",
+    author: "Sarah Williams, Michael Brown",
+    call_number: "WEB 301 .W55 2024",
+    isbn: "978-0-13-345678-9",
+    year: 2024,
+  },
+  {
+    id: 4,
+    program_id: "1",
+    title: "Database Management Systems",
+    author: "David Chen",
+    call_number: "DB 401 .C44 2023",
+    isbn: "978-0-13-456789-0",
+    year: 2023,
+  },
+  {
+    id: 5,
+    program_id: "2",
+    title: "Artificial Intelligence: A Modern Approach",
+    author: "Stuart Russell, Peter Norvig",
+    call_number: "AI 501 .R87 2024",
+    isbn: "978-0-13-567890-1",
+    year: 2024,
+  },
+  {
+    id: 6,
+    program_id: "3",
+    title: "Computer Organization and Design",
+    author: "David Patterson, John Hennessy",
+    call_number: "CO 301 .P38 2023",
+    isbn: "978-0-12-678912-3",
+    year: 2023,
+  },
+];
 // ─────────────────────────────────────────────────────────────────────────────
 
 const formatDownloads = (n) => {
@@ -247,9 +307,13 @@ const ProgramDetails = () => {
 
   const [program, setProgram] = useState(null);
   const [ebooks, setEbooks] = useState([]);
+  const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [activeTab, setActiveTab] = useState("ebooks");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -261,7 +325,11 @@ const ProgramDetails = () => {
         const programEbooks = ALL_EBOOKS.filter(
           (e) => String(e.program_id) === String(id),
         );
+        const programBooks = ALL_BOOKS.filter(
+          (b) => String(b.program_id) === String(id),
+        );
         setEbooks(programEbooks);
+        setBooks(programBooks);
       } else {
         setError("Program not found.");
       }
@@ -329,7 +397,34 @@ const ProgramDetails = () => {
   };
 
   const totalEbooks = ebooks.length;
-  const totalDownloads = ebooks.reduce((sum, e) => sum + (e.downloads || 0), 0);
+  const totalBooks = books.length;
+
+  // Pagination for eBooks
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentEbooks = ebooks.slice(indexOfFirstItem, indexOfLastItem);
+  const totalEbookPages = Math.ceil(ebooks.length / itemsPerPage);
+
+  // Pagination for Books
+  const currentBooks = books.slice(indexOfFirstItem, indexOfLastItem);
+  const totalBookPages = Math.ceil(books.length / itemsPerPage);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const actionOptions = [
+    { value: "edit", label: "Edit Program", icon: Edit2 },
+    { value: "delete", label: "Delete Program", icon: Trash2, danger: true },
+  ];
+
+  const handleActionSelect = (option) => {
+    if (option.value === "edit") {
+      handleEdit();
+    } else if (option.value === "delete") {
+      handleDelete();
+    }
+  };
 
   return (
     <div className="relative z-10 min-h-screen flex flex-col rounded-xl bg-white">
@@ -392,66 +487,39 @@ const ProgramDetails = () => {
               {/* Program Header with Actions */}
               <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-16 h-16 rounded-xl flex items-center justify-center text-white text-2xl font-bold"
-                      style={{ backgroundColor: program.color }}
-                    >
-                      {program.acronym?.charAt(0)}
-                    </div>
-                    <div>
-                      <h1 className="text-3xl font-bold text-gray-900">
-                        {program.name}
-                      </h1>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="font-mono text-sm font-medium text-gray-500">
-                          {program.acronym}
-                        </span>
-                        <span
-                          className="w-3 h-3 rounded-full inline-block"
-                          style={{ backgroundColor: program.color }}
-                        />
-                      </div>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {program.name}
+                    </h1>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="font-mono text-sm font-medium text-gray-500">
+                        {program.acronym}
+                      </span>
+                      <span
+                        className="w-3 h-3 rounded-full inline-block"
+                        style={{ backgroundColor: program.color }}
+                      />
                     </div>
                   </div>
 
-                  {/* Action Button Menu */}
-                  <div className="relative" ref={menuRef}>
-                    <button
-                      onClick={() => setShowActionMenu(!showActionMenu)}
-                      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
-                    >
-                      <span>Actions</span>
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    {showActionMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                        <button
-                          onClick={handleEdit}
-                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                          Edit Program
-                        </button>
-                        <button
-                          onClick={handleDelete}
-                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete Program
-                        </button>
-                      </div>
-                    )}
+                  {/* Action Select Dropdown - Updated: no border, gray-900 text */}
+                  <div className="w-48" ref={menuRef}>
+                    <CustomSelect
+                      options={actionOptions}
+                      placeholder="Actions"
+                      onChange={handleActionSelect}
+                      icon={ChevronDown}
+                      isSearchable={false}
+                      className="border-none"
+                      placeholderClassName="text-gray-900 font-medium"
+                    />
                   </div>
                 </div>
 
-                {/* Program Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
+                {/* Program Stats - Updated: bigger icons, text-blue-600, no background, only 2 stats */}
+                <div className="flex items-center gap-8 mt-6 pt-6 border-t border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 rounded-lg">
-                      <BookOpen className="w-5 h-5 text-blue-600" />
-                    </div>
+                    <BookOpen className="w-6 h-6 text-blue-600" />
                     <div>
                       <p className="text-sm text-gray-500">Total eBooks</p>
                       <p className="text-xl font-semibold text-gray-900">
@@ -460,144 +528,267 @@ const ProgramDetails = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-50 rounded-lg">
-                      <Download className="w-5 h-5 text-green-600" />
-                    </div>
+                    <BookOpen className="w-6 h-6 text-blue-600" />
                     <div>
-                      <p className="text-sm text-gray-500">Total Downloads</p>
+                      <p className="text-sm text-gray-500">Total Books</p>
                       <p className="text-xl font-semibold text-gray-900">
-                        {formatDownloads(totalDownloads)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-50 rounded-lg">
-                      <Calendar className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Added</p>
-                      <p className="text-xl font-semibold text-gray-900">
-                        {formatDate(program.created_at)}
+                        {totalBooks}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* eBooks Section */}
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    eBooks in this Program
-                  </h2>
-                  <span className="px-3 py-1 bg-gray-100 rounded-full text-sm font-medium text-gray-700">
-                    {totalEbooks} {totalEbooks === 1 ? "eBook" : "eBooks"}
-                  </span>
+              {/* Tabs */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="border-b border-gray-200">
+                  <div className="flex">
+                    <button
+                      onClick={() => {
+                        setActiveTab("ebooks");
+                        setCurrentPage(1);
+                      }}
+                      className={`px-6 py-3 text-sm font-medium transition-colors ${
+                        activeTab === "ebooks"
+                          ? "text-blue-600 border-b-2 border-blue-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      eBooks ({totalEbooks})
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("books");
+                        setCurrentPage(1);
+                      }}
+                      className={`px-6 py-3 text-sm font-medium transition-colors ${
+                        activeTab === "books"
+                          ? "text-blue-600 border-b-2 border-blue-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      Books ({totalBooks})
+                    </button>
+                  </div>
                 </div>
 
-                {ebooks.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="flex justify-center mb-4">
-                      <div className="p-3 bg-gray-50 rounded-full">
-                        <BookOpen className="w-12 h-12 text-gray-400" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No eBooks Yet
-                    </h3>
-                    <p className="text-gray-600">
-                      This program doesn't have any eBooks uploaded yet.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {ebooks.map((ebook) => (
-                      <div
-                        key={ebook.id}
-                        className="group border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300"
-                      >
-                        {/* eBook Cover */}
-                        <div
-                          onClick={() => navigate(`/ebook-record/${ebook.id}`)}
-                          className="block aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden cursor-pointer"
-                        >
-                          {ebook.cover_url ? (
-                            <img
-                              src={ebook.cover_url}
-                              alt={ebook.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.target.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
+                <div className="p-6">
+                  {/* eBooks Tab - Updated card design matching Home.jsx featured items */}
+                  {activeTab === "ebooks" && (
+                    <>
+                      {ebooks.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="flex justify-center mb-4">
+                            <div className="p-3 bg-gray-50 rounded-full">
                               <BookOpen className="w-12 h-12 text-gray-400" />
                             </div>
-                          )}
-
-                          {ebook.year_level && (
-                            <span className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm text-xs font-medium px-2 py-1 rounded-full shadow-sm">
-                              {yearSuffix(ebook.year_level)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* eBook Info */}
-                        <div className="p-4">
-                          <div
-                            onClick={() =>
-                              navigate(`/ebook-record/${ebook.id}`)
-                            }
-                            className="cursor-pointer group-hover:text-blue-600 transition-colors"
-                          >
-                            <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">
-                              {ebook.title}
-                            </h3>
                           </div>
-
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                              <Download className="w-4 h-4" />
-                              <span>{formatDownloads(ebook.downloads)}</span>
-                            </div>
-                            <span className="text-xs text-gray-400">
-                              {formatFileSize(ebook.file_size)}
-                            </span>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleRead(ebook.file_url)}
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-                            >
-                              <Eye className="w-4 h-4" />
-                              Read
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDownload(
-                                  ebook.id,
-                                  ebook.title,
-                                  ebook.file_name,
-                                )
-                              }
-                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white transition-colors"
-                            >
-                              <Download className="w-4 h-4" />
-                              Download
-                            </button>
-                          </div>
-
-                          <p className="mt-3 text-xs text-gray-400">
-                            Uploaded by {ebook.uploader_name || "Unknown"}
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            No eBooks Yet
+                          </h3>
+                          <p className="text-gray-600">
+                            This program doesn't have any eBooks uploaded yet.
                           </p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {currentEbooks.map((ebook) => (
+                              <div
+                                key={ebook.id}
+                                className="group overflow-hidden hover:-translate-y-2 transition-all duration-300 h-full bg-white rounded-xl border border-gray-200"
+                              >
+                                {/* eBook Cover - matching Home.jsx featured card style */}
+                                <div
+                                  onClick={() =>
+                                    navigate(`/ebook-record/${ebook.id}`)
+                                  }
+                                  className="relative overflow-hidden cursor-pointer"
+                                >
+                                  <div className="aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                    {ebook.cover_url ? (
+                                      <img
+                                        src={ebook.cover_url}
+                                        alt={ebook.title}
+                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                      />
+                                    ) : (
+                                      <BookOpen className="w-12 h-12 text-gray-400" />
+                                    )}
+                                  </div>
+                                  {/* Year Level Badge - positioned like category in Home */}
+                                  {ebook.year_level && (
+                                    <span className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                                      {yearSuffix(ebook.year_level)}
+                                    </span>
+                                  )}
+                                  {/* eBook Badge */}
+                                  <span className="absolute top-2 right-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                                    eBook
+                                  </span>
+                                </div>
+
+                                {/* eBook Info */}
+                                <div className="p-4">
+                                  <div
+                                    onClick={() =>
+                                      navigate(`/ebook-record/${ebook.id}`)
+                                    }
+                                    className="cursor-pointer group-hover:text-blue-600 transition-colors"
+                                  >
+                                    <h3 className="font-semibold text-gray-900 line-clamp-2 mb-1">
+                                      {ebook.title}
+                                    </h3>
+                                  </div>
+
+                                  <p className="text-sm text-gray-500 mb-2">
+                                    Uploaded by{" "}
+                                    {ebook.uploader_name || "Unknown"}
+                                  </p>
+
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                                      <Download className="w-4 h-4" />
+                                      <span>
+                                        {formatDownloads(ebook.downloads)}{" "}
+                                        downloads
+                                      </span>
+                                    </div>
+                                    <span className="text-xs text-gray-400">
+                                      {formatFileSize(ebook.file_size)}
+                                    </span>
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleRead(ebook.file_url)}
+                                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                      Read
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleDownload(
+                                          ebook.id,
+                                          ebook.title,
+                                          ebook.file_name,
+                                        )
+                                      }
+                                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium text-white transition-colors"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                      Download
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Pagination for eBooks */}
+                          {totalEbookPages > 1 && (
+                            <div className="mt-6">
+                              <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalEbookPages}
+                                onPageChange={handlePageChange}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {/* Books Tab - Updated table design matching Books.jsx */}
+                  {activeTab === "books" && (
+                    <>
+                      {books.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="flex justify-center mb-4">
+                            <div className="p-3 bg-gray-50 rounded-full">
+                              <BookOpen className="w-12 h-12 text-gray-400" />
+                            </div>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            No Books Yet
+                          </h3>
+                          <p className="text-gray-600">
+                            This program doesn't have any books associated yet.
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-gray-50 border-y border-gray-200">
+                                <tr>
+                                  <th className="px-4 py-3 text-left font-medium text-gray-600">
+                                    Title
+                                  </th>
+                                  <th className="px-4 py-3 text-left font-medium text-gray-600">
+                                    Author
+                                  </th>
+                                  <th className="px-4 py-3 text-left font-medium text-gray-600">
+                                    Call Number
+                                  </th>
+                                  <th className="px-4 py-3 text-left font-medium text-gray-600">
+                                    ISBN
+                                  </th>
+                                  <th className="px-4 py-3 text-left font-medium text-gray-600">
+                                    Year
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {currentBooks.map((book) => (
+                                  <tr
+                                    key={book.id}
+                                    className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                    onClick={() =>
+                                      navigate(`/books/${book.id}`, {
+                                        state: { book },
+                                      })
+                                    }
+                                  >
+                                    <td className="px-4 py-3 font-medium text-gray-900">
+                                      {book.title}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-600">
+                                      {book.author}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                                      {book.call_number}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-xs text-gray-500">
+                                      {book.isbn}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-600">
+                                      {book.year}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Pagination for Books */}
+                          {totalBookPages > 1 && (
+                            <div className="mt-6">
+                              <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalBookPages}
+                                onPageChange={handlePageChange}
+                              />
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </>
           )}

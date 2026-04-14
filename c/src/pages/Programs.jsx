@@ -1,18 +1,9 @@
 // src/pages/Programs.jsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  GraduationCap,
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  BookOpen,
-  MoreVertical,
-} from "lucide-react";
+import { GraduationCap, Plus, Search, BookOpen } from "lucide-react";
 import toast from "react-hot-toast";
+import Pagination from "../components/Pagination";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const INITIAL_PROGRAMS = [
@@ -21,7 +12,8 @@ const INITIAL_PROGRAMS = [
     name: "Bachelor of Science in Information Technology",
     acronym: "BSIT",
     color: "#3b82f6",
-    total_ebooks: 12,
+    total_books: 12,
+    total_ebooks: 8,
     created_at: "2023-01-15",
   },
   {
@@ -29,7 +21,8 @@ const INITIAL_PROGRAMS = [
     name: "Bachelor of Science in Computer Science",
     acronym: "BSCS",
     color: "#10b981",
-    total_ebooks: 9,
+    total_books: 9,
+    total_ebooks: 6,
     created_at: "2023-02-20",
   },
   {
@@ -37,7 +30,8 @@ const INITIAL_PROGRAMS = [
     name: "Bachelor of Science in Computer Engineering",
     acronym: "BSCpE",
     color: "#f59e0b",
-    total_ebooks: 7,
+    total_books: 7,
+    total_ebooks: 4,
     created_at: "2023-03-10",
   },
   {
@@ -45,7 +39,8 @@ const INITIAL_PROGRAMS = [
     name: "Bachelor of Science in Electronics Engineering",
     acronym: "BSECE",
     color: "#8b5cf6",
-    total_ebooks: 5,
+    total_books: 5,
+    total_ebooks: 3,
     created_at: "2023-04-05",
   },
   {
@@ -53,7 +48,8 @@ const INITIAL_PROGRAMS = [
     name: "Bachelor of Science in Electrical Engineering",
     acronym: "BSEE",
     color: "#ef4444",
-    total_ebooks: 4,
+    total_books: 4,
+    total_ebooks: 2,
     created_at: "2023-05-12",
   },
   {
@@ -61,7 +57,8 @@ const INITIAL_PROGRAMS = [
     name: "Bachelor of Science in Mechanical Engineering",
     acronym: "BSME",
     color: "#06b6d4",
-    total_ebooks: 3,
+    total_books: 3,
+    total_ebooks: 1,
     created_at: "2023-06-18",
   },
 ];
@@ -79,7 +76,6 @@ const hexToLightBg = (hex) => {
 };
 
 const ProgramCard = ({ program, onEdit, onDelete }) => {
-  const [showMenu, setShowMenu] = useState(false);
   const color = program.color || "#3b82f6";
   const lightBg = hexToLightBg(color);
 
@@ -107,56 +103,21 @@ const ProgramCard = ({ program, onEdit, onDelete }) => {
             {program.acronym}
           </h3>
           <p className="text-xs text-gray-500 truncate">{program.name}</p>
-          <p
-            className="text-xs mt-1 font-medium flex items-center gap-1"
-            style={{ color }}
-          >
-            <BookOpen className="w-3 h-3" />
-            {program.total_ebooks || 0} eBooks
-          </p>
+          <div className="mt-1 flex items-center gap-3">
+            <p
+              className="text-xs font-medium flex items-center gap-1"
+              style={{ color }}
+            >
+              <BookOpen className="w-3 h-3" />
+              {program.total_books || 0} Books
+            </p>
+            <p className="text-xs font-medium text-blue-600 flex items-center gap-1">
+              <BookOpen className="w-3 h-3" />
+              {program.total_ebooks || 0} eBooks
+            </p>
+          </div>
         </div>
       </Link>
-
-      {/* Action Menu */}
-      <div className="relative flex items-center pr-2">
-        <button
-          onClick={() => setShowMenu(!showMenu)}
-          className="p-2 hover:bg-black/5 rounded-lg transition-colors"
-        >
-          <MoreVertical className="w-4 h-4 text-gray-600" />
-        </button>
-
-        {showMenu && (
-          <>
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setShowMenu(false)}
-            />
-            <div className="absolute right-2 top-12 z-20 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[120px]">
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onEdit(program.id);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-              >
-                <Edit2 className="w-4 h-4" />
-                Edit
-              </button>
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  onDelete(program.id, program.name);
-                }}
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete
-              </button>
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 };
@@ -202,6 +163,10 @@ const Programs = () => {
     }
     setPrograms((prev) => prev.filter((p) => p.id !== id));
     toast.success("Program deleted successfully");
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   return (
@@ -290,45 +255,12 @@ const Programs = () => {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (number) => (
-                    <button
-                      key={number}
-                      onClick={() => setCurrentPage(number)}
-                      className={`px-4 py-2 border rounded-lg ${
-                        currentPage === number
-                          ? "bg-blue-600 text-white border-blue-600"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      {number}
-                    </button>
-                  ),
-                )}
-                <button
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Pagination Component */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         </>
       )}
     </div>

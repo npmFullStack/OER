@@ -80,15 +80,25 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
               )}
             </button>
 
-            <Link to="/dashboard" className="flex items-center space-x-2">
-              <img
-                src={logo}
-                alt="OCC eRead"
-                className="w-8 h-8 object-contain"
-              />
-              <span className="text-xl font-extrabold tracking-wider">
-                <span className="text-primary">OCC</span>
-                <span className="text-gray-900">eRead</span>
+            <Link to="/dashboard" className="flex items-center">
+              <span className="text-2xl font-black whitespace-nowrap">
+                <span className="text-blue-600">OCC</span>
+                <span className="inline-flex items-baseline">
+                  <span
+                    className="font-black text-gray-900"
+                    style={{
+                      fontStyle: "italic",
+                      fontWeight: 900,
+                      fontSize: "1.1em",
+                      lineHeight: 1,
+                      letterSpacing: "-0.03em",
+                      marginRight: "1px",
+                    }}
+                  >
+                    e
+                  </span>
+                  <span className="text-gray-900">Library</span>
+                </span>
               </span>
             </Link>
           </div>

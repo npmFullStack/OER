@@ -1,5 +1,5 @@
 // src/components/layout/Sidebar.jsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -13,8 +13,33 @@ import {
   Library,
 } from "lucide-react";
 
-const Sidebar = ({ isOpen }) => {
+const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
+  // Handle body scroll lock when mobile drawer is open
+  useEffect(() => {
+    if (isMobile && isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobile, isOpen]);
 
   const menuItems = [
     { path: "/dashboard", name: "Dashboard", icon: LayoutDashboard },
@@ -33,12 +58,14 @@ const Sidebar = ({ isOpen }) => {
     } ${!isOpen ? "justify-center" : ""}`;
   };
 
-  return (
-    <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-all duration-300 z-40 flex flex-col ${
-        isOpen ? "w-64" : "w-20"
-      }`}
-    >
+  const handleLinkClick = () => {
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
+
+  const sidebarContent = (
+    <>
       {/* Navigation Menu */}
       <div className="flex-1 overflow-y-auto">
         <nav className="p-3">
@@ -49,6 +76,7 @@ const Sidebar = ({ isOpen }) => {
                   to={item.path}
                   className={getNavLinkClass}
                   title={!isOpen ? item.name : ""}
+                  onClick={handleLinkClick}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
                   {isOpen && (
@@ -82,7 +110,10 @@ const Sidebar = ({ isOpen }) => {
               </div>
             </div>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                navigate("/login");
+                handleLinkClick();
+              }}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >
@@ -96,7 +127,10 @@ const Sidebar = ({ isOpen }) => {
               <User className="w-5 h-5 text-primary" />
             </div>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                navigate("/login");
+                handleLinkClick();
+              }}
               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >
@@ -105,6 +139,42 @@ const Sidebar = ({ isOpen }) => {
           </div>
         )}
       </div>
+    </>
+  );
+
+  // Mobile: Drawer with overlay
+  if (isMobile) {
+    return (
+      <>
+        {/* Overlay */}
+        {isOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300"
+            onClick={onClose}
+            aria-label="Close sidebar overlay"
+          />
+        )}
+
+        {/* Drawer */}
+        <aside
+          className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-transform duration-300 z-40 flex flex-col w-64 ${
+            isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          {sidebarContent}
+        </aside>
+      </>
+    );
+  }
+
+  // Desktop: Persistent sidebar
+  return (
+    <aside
+      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-all duration-300 z-40 flex flex-col ${
+        isOpen ? "w-64" : "w-20"
+      }`}
+    >
+      {sidebarContent}
     </aside>
   );
 };
