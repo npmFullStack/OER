@@ -70,32 +70,27 @@ const ImportBooks = () => {
         total: 25,
         valid: 23,
         invalid: 2,
-        columns: [
-          "accession_number",
-          "title",
-          "author",
-          "call_number",
-          "publisher",
-          "copyright",
-          "isbn",
-        ],
+        columns: ["title", "author", "call_number", "program"],
         sample: [
           {
-            accession_number: "ACC-2024-001",
             title: "Sample Book 1",
             author: "John Smith",
+            call_number: "QA76.6 .S65 2024",
+            program: "BSIT",
             valid: true,
           },
           {
-            accession_number: "ACC-2024-002",
             title: "Sample Book 2",
             author: "Jane Doe",
+            call_number: "HF101 .D64 2024",
+            program: "BSBA-FM",
             valid: true,
           },
           {
-            accession_number: "ACC-2024-003",
             title: "", // Missing title
             author: "Bob Wilson",
+            call_number: "ED101 .W55 2024",
+            program: "BSED",
             valid: false,
           },
         ],
@@ -110,37 +105,14 @@ const ImportBooks = () => {
   };
 
   const downloadTemplate = () => {
-    // Create CSV template
-    const headers = [
-      "accession_number",
-      "title",
-      "author",
-      "call_number",
-      "publisher",
-      "copyright",
-      "isbn",
-      "edition",
-      "volume",
-      "pages",
-      "status",
-      "location",
-      "description",
-    ].join(",");
+    // Create CSV template with only Title, Author, Call Number, Program
+    const headers = ["title", "author", "call_number", "program"].join(",");
 
     const sampleRow = [
-      "ACC-2024-001",
       "Introduction to Programming",
       "John Smith",
       "QA76.6 .S65 2024",
-      "Pearson",
-      "2024",
-      "978-0-13-789456-1",
-      "3rd Edition",
-      "",
-      "450",
-      "Available",
-      "General Collection",
-      "Sample description",
+      "BSIT",
     ].join(",");
 
     const csvContent = `${headers}\n${sampleRow}`;
@@ -326,7 +298,7 @@ const ImportBooks = () => {
                             className="text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm text-gray-700">
-                            Update existing (match by accession #)
+                            Update existing (match by title & author)
                           </span>
                         </label>
                       </div>
@@ -414,13 +386,16 @@ const ImportBooks = () => {
                         <thead>
                           <tr className="bg-gray-50">
                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
-                              Accession #
-                            </th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                               Title
                             </th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                               Author
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                              Call Number
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                              Program
                             </th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                               Status
@@ -435,9 +410,6 @@ const ImportBooks = () => {
                                 row.valid ? "" : "bg-red-50"
                               }`}
                             >
-                              <td className="px-3 py-2 font-mono text-xs">
-                                {row.accession_number}
-                              </td>
                               <td className="px-3 py-2">
                                 <span
                                   className={!row.valid ? "text-red-600" : ""}
@@ -450,6 +422,14 @@ const ImportBooks = () => {
                                 </span>
                               </td>
                               <td className="px-3 py-2">{row.author}</td>
+                              <td className="px-3 py-2 font-mono text-xs">
+                                {row.call_number}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  {row.program}
+                                </span>
+                              </td>
                               <td className="px-3 py-2">
                                 {row.valid ? (
                                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -529,8 +509,7 @@ const ImportBooks = () => {
                         Required Fields
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        accession_number, title, author, call_number, publisher,
-                        copyright
+                        title, author, call_number, program
                       </p>
                     </div>
                   </div>
@@ -541,11 +520,10 @@ const ImportBooks = () => {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        Optional Fields
+                        Program Options
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        isbn, edition, volume, pages, status, location,
-                        description
+                        BSIT, BSBA-FM, BSBA-MM, BSED, BEED, GEN ED
                       </p>
                     </div>
                   </div>
@@ -578,7 +556,9 @@ const ImportBooks = () => {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-blue-600">•</span>
-                      <span>Accession numbers must be unique</span>
+                      <span>
+                        Title, Author, Call Number, and Program are required
+                      </span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-blue-600">•</span>

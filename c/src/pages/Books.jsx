@@ -11,9 +11,9 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import Pagination from "../components/Pagination";
-import EditBookModal from "../components/modals/EditBookModal";
-import WarningModal from "../components/modals/WarningModal";
+import Pagination from "@/components/Pagination";
+import EditBookModal from "@/components/modals/EditBookModal";
+import WarningModal from "@/components/modals/WarningModal";
 
 const Books = () => {
   const navigate = useNavigate();
