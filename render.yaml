@@ -1,9 +1,0 @@
-services:
-  - type: static
-    name: OER
-    publish: ./c/dist
-    buildCommand: cd c && npm install && npm run build
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
