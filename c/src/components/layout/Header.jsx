@@ -2,6 +2,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { Home, Compass, Grid, Info, LogIn, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import logoSvg from "@/assets/images/logo.svg";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -63,14 +64,6 @@ const Header = () => {
       : "text-textSecondary hover:text-primary";
   };
 
-  // Get OCC color based on scroll position - matches hero section style
-  const getOCCColor = () => {
-    if (isHomePage && !isScrolled) {
-      return "text-blue-600"; // Light blue color
-    }
-    return "text-primary"; // Default deep blue
-  };
-
   // Get eLibrary color based on scroll position - matches hero section
   const getELibraryColor = () => {
     if (isHomePage && !isScrolled) {
@@ -79,25 +72,10 @@ const Header = () => {
     return "text-textPrimary";
   };
 
-  // Get the special 'e' letter style
-  const getELetterStyle = () => {
-    if (isHomePage && !isScrolled) {
-      return {
-        color: "white",
-        textShadow:
-          "0 0 4px #2563eb, 0 0 4px #2563eb, 0 0 4px #2563eb, 0 0 4px #2563eb, 0 0 4px #2563eb",
-      };
-    }
-    return {
-      color: "inherit",
-      textShadow: "none",
-    };
-  };
-
   // Determine button styles for login
   const getLoginButtonClasses = () => {
     if (isHomePage && !isScrolled) {
-      return "bg-primary hover:bg-primaryDark text-white border border-white/20";
+      return "bg-blue-600 hover:bg-primaryDark text-white border border-white/20";
     }
     return "bg-primary hover:bg-primaryDark text-white";
   };
@@ -115,9 +93,10 @@ const Header = () => {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo and Brand - Matching hero section style */}
-          <Link to="/" className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center gap-1">
+            <img src={logoSvg} alt="OCC Logo" className="h-8 w-auto" />
             <span className="text-2xl font-black tracking-wider whitespace-nowrap">
-              <span className={getOCCColor()}>OCC</span>
+              <span className="text-blue-600">OCC</span>
               <span className="inline-flex items-baseline">
                 <span
                   className={getELibraryColor()}
@@ -198,7 +177,7 @@ const Header = () => {
               onClick={() => setIsMenuOpen(false)}
             />
 
-            {/* Mobile Menu Drawer - Slides from right side */}
+            {/* Mobile Menu Drawer - Always white background */}
             <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 md:hidden animate-slideInRight">
               {/* Close button inside drawer */}
               <button

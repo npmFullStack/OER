@@ -1,6 +1,7 @@
 // Footer.jsx
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
+import logoSvg from "@/assets/images/logo.svg";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -27,7 +28,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Brand Column - Text logo matching header style */}
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="flex items-center space-x-3 mb-4">
+            <Link to="/" className="flex items-center gap-1 mb-4">
+              <img src={logoSvg} alt="OCC Logo" className="h-8 w-auto" />
               <span className="text-2xl font-black tracking-wider whitespace-nowrap">
                 <span className="text-blue-600">OCC</span>
                 <span className="inline-flex items-baseline">

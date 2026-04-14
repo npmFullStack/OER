@@ -8,47 +8,48 @@ import {
   CheckCircle,
   AlertCircle,
   BookOpen,
-  Calendar,
-  Layers,
   Info,
   Eye,
 } from "lucide-react";
 import instruction from "@/assets/images/instruction.png";
 import * as pdfjsLib from "pdfjs-dist";
+import CustomSelect from "../components/Select";
 
 const PROGRAMS = [
+  { value: 1, label: "BSIT - Bachelor of Science in Information Technology" },
   {
-    id: 1,
-    acronym: "BSIT",
-    name: "Bachelor of Science in Information Technology",
-    color: "#3B82F6",
+    value: 2,
+    label:
+      "BSBA-FM - Bachelor of Science in Business Administration - Financial Management",
   },
   {
-    id: 2,
-    acronym: "BSBA-FM",
-    name: "Bachelor of Science in Business Administration - Financial Management",
-    color: "#10B981",
+    value: 3,
+    label:
+      "BSBA-MM - Bachelor of Science in Business Administration - Marketing Management",
   },
-  {
-    id: 3,
-    acronym: "BEED",
-    name: "Bachelor in Elementary Education",
-    color: "#F59E0B",
-  },
-  {
-    id: 4,
-    acronym: "BSED",
-    name: "Bachelor of Secondary Education",
-    color: "#8B5CF6",
-  },
+  { value: 4, label: "BSED - Bachelor of Secondary Education" },
+  { value: 5, label: "BEED - Bachelor in Elementary Education" },
+  { value: 6, label: "GEN ED - General Education" },
 ];
 
-const YEAR_LEVELS = [
-  { value: "1", label: "1st Year" },
-  { value: "2", label: "2nd Year" },
-  { value: "3", label: "3rd Year" },
-  { value: "4", label: "4th Year" },
-];
+// Program color mapping for preview
+const PROGRAM_COLORS = {
+  1: "#ef4444", // BSIT - red
+  2: "#eab308", // BSBA-FM - yellow
+  3: "#eab308", // BSBA-MM - yellow
+  4: "#3b82f6", // BSED - blue
+  5: "#3b82f6", // BEED - blue
+  6: "#10b981", // GEN ED - green
+};
+
+const PROGRAM_ACRONYMS = {
+  1: "BSIT",
+  2: "BSBA-FM",
+  3: "BSBA-MM",
+  4: "BSED",
+  5: "BEED",
+  6: "GEN ED",
+};
 
 const UploadEbook = () => {
   const navigate = useNavigate();
@@ -56,7 +57,6 @@ const UploadEbook = () => {
   const [formData, setFormData] = useState({
     title: "",
     programId: "",
-    yearLevel: "",
   });
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
@@ -71,6 +71,10 @@ const UploadEbook = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleProgramChange = (value) => {
+    setFormData({ ...formData, programId: value });
   };
 
   const renderPdfPage = async (arrayBuffer) => {
@@ -167,17 +171,32 @@ const UploadEbook = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // Validate required fields
+    if (!formData.title) {
+      toast.error("Please enter a title");
+      return;
+    }
+    if (!formData.programId) {
+      toast.error("Please select a program");
+      return;
+    }
+    if (!file) {
+      toast.error("Please upload a PDF file");
+      return;
+    }
+
     setLoading(true);
-    // Simulate a short delay then navigate
+    // Simulate upload
     setTimeout(() => {
       setLoading(false);
-      navigate("/dashboard");
+      navigate("/ebooks");
     }, 1000);
   };
 
-  const selectedProgram = PROGRAMS.find(
-    (p) => p.id === parseInt(formData.programId),
-  );
+  const selectedProgramId = formData.programId;
+  const selectedProgramColor = PROGRAM_COLORS[selectedProgramId];
+  const selectedProgramAcronym = PROGRAM_ACRONYMS[selectedProgramId];
 
   return (
     <div className="bg-white rounded-xl p-6">
@@ -319,74 +338,42 @@ const UploadEbook = () => {
                   </div>
                 </div>
 
-                {/* Program and Year Level */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Program <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <select
-                        name="programId"
-                        value={formData.programId}
-                        onChange={handleChange}
-                        required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                      >
-                        <option value="">Select Program</option>
-                        {PROGRAMS.map((program) => (
-                          <option key={program.id} value={program.id}>
-                            {program.acronym} - {program.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Year Level <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <select
-                        name="yearLevel"
-                        value={formData.yearLevel}
-                        onChange={handleChange}
-                        required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                      >
-                        <option value="">Select Year Level</option>
-                        {YEAR_LEVELS.map((year) => (
-                          <option key={year.value} value={year.value}>
-                            {year.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                {/* Program Select using CustomSelect */}
+                <div>
+                  <CustomSelect
+                    label="Program"
+                    options={PROGRAMS}
+                    value={formData.programId}
+                    onChange={handleProgramChange}
+                    placeholder="Select a program..."
+                    required={true}
+                    isClearable={true}
+                    isSearchable={true}
+                  />
                 </div>
 
                 {/* Program Preview */}
-                {selectedProgram && (
+                {selectedProgramId && (
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700 mb-2">
                       Selected Program Preview:
                     </p>
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold"
-                        style={{ backgroundColor: selectedProgram.color }}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-xs"
+                        style={{ backgroundColor: selectedProgramColor }}
                       >
-                        {selectedProgram.acronym?.charAt(0)}
+                        {selectedProgramAcronym?.charAt(0)}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {selectedProgram.name}
+                          {
+                            PROGRAMS.find((p) => p.value === selectedProgramId)
+                              ?.label
+                          }
                         </p>
                         <p className="text-xs text-gray-500">
-                          Acronym: {selectedProgram.acronym}
+                          Acronym: {selectedProgramAcronym}
                         </p>
                       </div>
                     </div>
@@ -406,7 +393,7 @@ const UploadEbook = () => {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/my-ebooks")}
                 className="px-6 py-3 border border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-all"
               >
                 Cancel
@@ -451,7 +438,7 @@ const UploadEbook = () => {
                 {
                   n: 3,
                   title: "Fill Book Details",
-                  desc: "Add title, program, and year level information",
+                  desc: "Add title and program information",
                 },
                 {
                   n: 4,

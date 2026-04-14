@@ -12,7 +12,7 @@ import {
   BookOpen,
   UserCircle,
 } from "lucide-react";
-import logo from "@/assets/images/logo.webp";
+import logoSvg from "@/assets/images/logo.svg";
 
 const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   const navigate = useNavigate();
@@ -80,7 +80,8 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
               )}
             </button>
 
-            <Link to="/dashboard" className="flex items-center">
+            <Link to="/dashboard" className="flex items-center gap-1">
+              <img src={logoSvg} alt="OCC Logo" className="h-8 w-auto" />
               <span className="text-2xl font-black whitespace-nowrap">
                 <span className="text-blue-600">OCC</span>
                 <span className="inline-flex items-baseline">

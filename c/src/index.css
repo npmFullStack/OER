@@ -3,19 +3,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ================= BASE ================= */
 @layer base {
   body {
     @apply bg-bgColor text-textPrimary tracking-wider;
   }
+
   input,
   textarea {
     @apply text-textPrimary bg-white border border-borderLight rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none;
   }
+
+  /* ✅ Default button behavior */
+  button {
+    @apply transition-colors;
+  }
+
+  button:hover {
+    @apply bg-gray-100;
+  }
 }
 
+/* ================= COMPONENTS ================= */
 @layer components {
   .card {
-    @apply bg-cardBg rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 border border-borderLight;
+    @apply bg-cardBg rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-borderLight;
   }
 
   .btn-primary {
@@ -27,6 +39,7 @@
   }
 }
 
+/* ================= ANIMATIONS ================= */
 @keyframes slideDown {
   from {
     opacity: 0;

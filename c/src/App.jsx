@@ -10,6 +10,7 @@ import Ebooks from "@/pages/Ebooks";
 import Books from "@/pages/Books";
 import NewBook from "@/pages/NewBook";
 import ImportBooks from "@/pages/ImportBooks";
+import Users from "@/pages/Users";
 import SearchResults from "@/pages/SearchResults";
 import EbookDetails from "@/pages/EbookDetails";
 import EbookRecord from "@/pages/EbookRecord";
@@ -70,6 +71,8 @@ const App = () => {
           <Route path="/books" element={<Books />} />
           <Route path="/books/new" element={<NewBook />} />
           <Route path="/books/import" element={<ImportBooks />} />
+
+          <Route path="/users" element={<Users />} />
 
           <Route path="/ebook-record/:id" element={<EbookRecord />} />
           <Route path="/programs" element={<Programs />} />

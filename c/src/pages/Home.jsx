@@ -21,6 +21,7 @@ import {
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import CustomSelect from "@/components/Select";
+import EbookCard from "@/components/EbookCard";
 import heroBg from "@/assets/images/heroBg.png";
 
 const programColors = {
@@ -68,6 +69,19 @@ const programColors = {
   },
 };
 
+// Helper function to get program color class for badge
+const getProgramColorBadge = (program) => {
+  const colors = {
+    BSIT: "bg-red-100 text-red-700",
+    "BSBA-FM": "bg-yellow-100 text-yellow-700",
+    "BSBA-MM": "bg-yellow-100 text-yellow-700",
+    BSED: "bg-blue-100 text-blue-700",
+    BEED: "bg-blue-100 text-blue-700",
+    "GEN ED": "bg-green-100 text-green-700",
+  };
+  return colors[program] || "bg-gray-100 text-gray-700";
+};
+
 const Home = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [resourceType, setResourceType] = useState("all");
@@ -76,6 +90,82 @@ const Home = () => {
   const filterRef = useRef(null);
   const filterButtonRef = useRef(null);
   const navigate = useNavigate();
+
+  // Mock ebooks data for demonstration
+  const [ebooks, setEbooks] = useState([
+    {
+      id: 1,
+      title: "Introduction to Computing",
+      author: "Dr. Maria Santos",
+      program_name: "BSIT",
+      type: "ebook",
+      cover_url:
+        "https://via.placeholder.com/200x280/0e326c/ffffff?text=Computing",
+      file_url: "#",
+      file_size: 5242880,
+      downloads: 234,
+      uploader_name: "Admin",
+    },
+    {
+      id: 2,
+      title: "Financial Management Basics",
+      author: "Prof. Juan Dela Cruz",
+      program_name: "BSBA-FM",
+      type: "ebook",
+      cover_url:
+        "https://via.placeholder.com/200x280/6B9AC4/ffffff?text=Finance",
+      file_url: "#",
+      file_size: 3670016,
+      downloads: 189,
+      uploader_name: "Admin",
+    },
+    {
+      id: 3,
+      title: "Modern Marketing Strategies",
+      author: "Ana Reyes",
+      program_name: "BSBA-MM",
+      type: "ebook",
+      cover_url:
+        "https://via.placeholder.com/200x280/0e326c/ffffff?text=Marketing",
+      file_url: "#",
+      file_size: 4194304,
+      downloads: 456,
+      uploader_name: "Admin",
+    },
+    {
+      id: 4,
+      title: "Elementary Education Methods",
+      author: "Dr. Luz Mercado",
+      program_name: "BEED",
+      type: "ebook",
+      cover_url:
+        "https://via.placeholder.com/200x280/6B9AC4/ffffff?text=Education",
+      file_url: "#",
+      file_size: 2883584,
+      downloads: 167,
+      uploader_name: "Admin",
+    },
+  ]);
+
+  // Helper functions for EbookCard
+  const formatFileSize = (bytes) => {
+    if (!bytes) return "0 B";
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+  };
+
+  const formatDownloads = (downloads) => {
+    if (downloads >= 1000) {
+      return `${(downloads / 1000).toFixed(1)}k`;
+    }
+    return downloads.toString();
+  };
+
+  const handleDownload = (id, title, fileName) => {
+    console.log(`Downloading ${title}...`);
+    // Implement actual download logic here
+  };
 
   // Options for react-select
   const resourceTypeOptions = [
@@ -109,7 +199,6 @@ const Home = () => {
 
     if (showFilters) {
       document.addEventListener("mousedown", handleClickOutside);
-      // Only prevent body scroll on mobile when filter is open
       if (window.innerWidth < 768) {
         document.body.style.overflow = "hidden";
       }
@@ -134,7 +223,7 @@ const Home = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, [showFilters]);
 
-  // Count active filters (excluding 'all' and empty string)
+  // Count active filters
   const activeFilterCount =
     (resourceType !== "all" ? 1 : 0) + (selectedProgram ? 1 : 0);
 
@@ -223,7 +312,6 @@ const Home = () => {
         <div className="absolute inset-0 bg-black/25" />
         <div className="container mx-auto px-4 relative z-10 py-16 md:py-24">
           <div className="max-w-3xl mx-auto text-center">
-            {/* Title - Responsive with line break on mobile */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold text-white mb-4 md:mb-5">
               <span className="block sm:inline">Welcome to </span>
               <span className="inline-flex items-center justify-center flex-wrap sm:flex-nowrap">
@@ -259,7 +347,6 @@ const Home = () => {
               className="max-w-2xl mx-auto relative"
             >
               <div className="flex items-stretch bg-white rounded-2xl shadow-2xl overflow-hidden">
-                {/* Text Input */}
                 <input
                   type="text"
                   value={searchQuery}
@@ -268,7 +355,6 @@ const Home = () => {
                   className="flex-1 px-3 sm:px-4 py-3 sm:py-4 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none min-w-0"
                 />
 
-                {/* Filter Button with Badge */}
                 <div className="relative">
                   <button
                     ref={filterButtonRef}
@@ -290,7 +376,6 @@ const Home = () => {
                   </button>
                 </div>
 
-                {/* Search Button */}
                 <button
                   type="submit"
                   className="flex-shrink-0 bg-primary hover:bg-primaryDark text-white px-4 sm:px-6 py-3 sm:py-4 transition-colors duration-200 flex items-center gap-1 sm:gap-2 font-medium"
@@ -300,22 +385,19 @@ const Home = () => {
                 </button>
               </div>
 
-              {/* Floating Filter Drawer - No height shift, scrollable */}
+              {/* Floating Filter Drawer */}
               {showFilters && (
                 <>
-                  {/* Backdrop overlay */}
                   <div
                     className="fixed inset-0 bg-black/50 z-40 md:absolute md:inset-auto md:bg-transparent"
                     style={{ top: 0, left: 0, right: 0, bottom: 0 }}
                     onClick={() => setShowFilters(false)}
                   />
 
-                  {/* Filter Drawer - Mobile: bottom sheet with scroll, Desktop: dropdown */}
                   <div
                     ref={filterRef}
                     className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl md:absolute md:bottom-auto md:top-full md:left-0 md:right-auto md:mt-2 md:w-80 md:rounded-2xl md:max-h-[80vh] md:overflow-y-auto animate-slideUp md:animate-slideDown"
                   >
-                    {/* Handle for mobile bottom sheet */}
                     <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mt-3 md:hidden" />
 
                     <div className="p-5 overflow-y-auto max-h-[80vh] md:max-h-none">
@@ -333,7 +415,6 @@ const Home = () => {
                       </div>
 
                       <div className="space-y-4">
-                        {/* Resource Type - Using CustomSelect */}
                         <CustomSelect
                           label="Resource Type"
                           options={resourceTypeOptions}
@@ -344,7 +425,6 @@ const Home = () => {
                           isSearchable={false}
                         />
 
-                        {/* Program - Using CustomSelect */}
                         <CustomSelect
                           label="Program"
                           options={programOptions}
@@ -374,13 +454,11 @@ const Home = () => {
                       </div>
                     </div>
 
-                    {/* Safe area inset for mobile (iOS) */}
                     <div className="h-safe-bottom md:hidden" />
                   </div>
                 </>
               )}
 
-              {/* Active filter pills shown below bar */}
               {activeFilterCount > 0 && (
                 <div className="flex gap-2 mt-3 justify-center flex-wrap">
                   {resourceType !== "all" && (
@@ -406,7 +484,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section - Made responsive */}
+      {/* Stats Section */}
       <section className="py-8 md:py-12 bg-bgColor">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-3 gap-3 md:gap-6 max-w-xl mx-auto">
@@ -438,7 +516,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Browse by Program - Made responsive */}
+      {/* Browse by Program */}
       <section className="py-12 md:py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 md:mb-12">
@@ -482,7 +560,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Resources - Made responsive */}
+      {/* Featured Resources - Now using EbookCard for eBooks */}
       <section className="py-12 md:py-20 bg-bgColor">
         <div className="container mx-auto px-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12 gap-4">
@@ -501,6 +579,7 @@ const Home = () => {
               View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {featuredItems.map((item) => {
               const colors = programColors[item.category];
@@ -559,8 +638,43 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Features Section - Made responsive */}
+      {/* New eBooks Section - Using EbookCard */}
       <section className="py-12 md:py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12 gap-4">
+            <div>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-textPrimary mb-2">
+                Popular eBooks
+              </h2>
+              <p className="text-sm md:text-base text-textSecondary">
+                Download and read our most popular digital books
+              </p>
+            </div>
+            <Link
+              to="/ebooks"
+              className="text-primary hover:text-primaryDark font-semibold flex items-center gap-2 transition-colors text-sm md:text-base"
+            >
+              Browse All eBooks <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {ebooks.map((ebook) => (
+              <EbookCard
+                key={ebook.id}
+                ebook={ebook}
+                onDownload={handleDownload}
+                getProgramColor={getProgramColorBadge}
+                formatFileSize={formatFileSize}
+                formatDownloads={formatDownloads}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-12 md:py-20 bg-bgColor">
         <div className="container mx-auto px-4">
           <div className="text-center mb-8 md:mb-12">
             <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-textPrimary mb-3 md:mb-4">
@@ -608,7 +722,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section - Made responsive */}
+      {/* CTA Section */}
       <section className="py-12 md:py-20 bg-primary">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-3 md:mb-4">

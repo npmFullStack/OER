@@ -6,16 +6,11 @@ import {
   Search,
   X,
   Upload,
-  Download,
-  Eye,
-  Calendar,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  Clock,
-  GraduationCap,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import EbookCard from "../components/EbookCard";
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const PROGRAMS = [
@@ -39,6 +34,7 @@ const EBOOKS_DATA = [
     downloads: 342,
     views: 1200,
     created_at: "2024-01-10T08:00:00Z",
+    uploader_name: "John Doe",
   },
   {
     id: "2",
@@ -51,6 +47,7 @@ const EBOOKS_DATA = [
     downloads: 289,
     views: 890,
     created_at: "2024-01-15T08:00:00Z",
+    uploader_name: "Jane Smith",
   },
   {
     id: "3",
@@ -63,6 +60,7 @@ const EBOOKS_DATA = [
     downloads: 412,
     views: 1540,
     created_at: "2024-02-01T08:00:00Z",
+    uploader_name: "Mike Johnson",
   },
   {
     id: "4",
@@ -75,6 +73,7 @@ const EBOOKS_DATA = [
     downloads: 198,
     views: 670,
     created_at: "2024-01-20T08:00:00Z",
+    uploader_name: "Sarah Wilson",
   },
   {
     id: "5",
@@ -87,6 +86,7 @@ const EBOOKS_DATA = [
     downloads: 321,
     views: 980,
     created_at: "2024-02-10T08:00:00Z",
+    uploader_name: "Robert Brown",
   },
   {
     id: "6",
@@ -99,6 +99,7 @@ const EBOOKS_DATA = [
     downloads: 156,
     views: 520,
     created_at: "2024-03-01T08:00:00Z",
+    uploader_name: "Emily Davis",
   },
   {
     id: "7",
@@ -111,6 +112,7 @@ const EBOOKS_DATA = [
     downloads: 234,
     views: 810,
     created_at: "2024-03-15T08:00:00Z",
+    uploader_name: "David Miller",
   },
   {
     id: "8",
@@ -123,6 +125,7 @@ const EBOOKS_DATA = [
     downloads: 567,
     views: 2100,
     created_at: "2024-04-01T08:00:00Z",
+    uploader_name: "Lisa Anderson",
   },
   {
     id: "9",
@@ -135,6 +138,7 @@ const EBOOKS_DATA = [
     downloads: 445,
     views: 1680,
     created_at: "2024-04-15T08:00:00Z",
+    uploader_name: "Mark Taylor",
   },
   {
     id: "10",
@@ -147,6 +151,7 @@ const EBOOKS_DATA = [
     downloads: 123,
     views: 430,
     created_at: "2024-05-01T08:00:00Z",
+    uploader_name: "Patricia Thomas",
   },
   {
     id: "11",
@@ -159,6 +164,7 @@ const EBOOKS_DATA = [
     downloads: 378,
     views: 1350,
     created_at: "2024-05-10T08:00:00Z",
+    uploader_name: "Kevin White",
   },
   {
     id: "12",
@@ -171,6 +177,7 @@ const EBOOKS_DATA = [
     downloads: 512,
     views: 1920,
     created_at: "2024-05-20T08:00:00Z",
+    uploader_name: "Nancy Harris",
   },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,13 +190,12 @@ const Ebooks = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [programFilter, setProgramFilter] = useState("");
-  const [imageStates, setImageStates] = useState({});
 
-  // Pagination
+  // Pagination - Display only 3 cards per page
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 3;
 
-  // Program color mapping (same as Books.jsx)
+  // Program color mapping (same as EbookCard expects)
   const getProgramColor = (programName) => {
     const colors = {
       BSIT: "bg-red-100 text-red-800",
@@ -208,23 +214,18 @@ const Ebooks = () => {
   ];
 
   useEffect(() => {
-    // Process eBooks with program names
+    // Process eBooks with program names and uploader names
     const processedEbooks = EBOOKS_DATA.map((ebook) => {
       const program = PROGRAMS.find((p) => p.id === ebook.program_id);
       return {
         ...ebook,
         program_name: program ? program.name : "Unknown",
+        uploader_name: ebook.uploader_name || "Unknown",
       };
     });
 
     setEbooks(processedEbooks);
     setFilteredEbooks(processedEbooks);
-
-    const initialImageStates = {};
-    processedEbooks.forEach((e) => {
-      initialImageStates[e.id] = { loading: true, error: false };
-    });
-    setImageStates(initialImageStates);
     setLoading(false);
   }, []);
 
@@ -254,44 +255,7 @@ const Ebooks = () => {
 
   const activeFilterCount = [searchTerm, programFilter].filter(Boolean).length;
 
-  const getCoverUrl = (ebook) => {
-    if (!ebook.cover_url) return null;
-    if (ebook.cover_url.startsWith("http")) return ebook.cover_url;
-    return null;
-  };
-
-  const handleImageLoad = (ebookId) => {
-    setImageStates((prev) => ({
-      ...prev,
-      [ebookId]: { ...prev[ebookId], loading: false, error: false },
-    }));
-  };
-
-  const handleImageError = (ebookId) => {
-    setImageStates((prev) => ({
-      ...prev,
-      [ebookId]: { ...prev[ebookId], loading: false, error: true },
-    }));
-  };
-
-  const truncateFileName = (name, maxLength = 20) => {
-    if (!name) return "";
-    if (name.length <= maxLength) return name;
-    const extension = name.split(".").pop();
-    const nameWithoutExt = name.substring(0, name.lastIndexOf("."));
-    const truncatedName = nameWithoutExt.substring(
-      0,
-      maxLength - 3 - extension.length,
-    );
-    return `${truncatedName}...${extension}`;
-  };
-
-  // Pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredEbooks.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredEbooks.length / itemsPerPage);
-
+  // Format functions to pass to EbookCard
   const formatDate = (dateString) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -309,9 +273,25 @@ const Ebooks = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const handleEbookClick = (ebook) => {
-    navigate(`/ebook-record/${ebook.id}`, { state: { ebook } });
+  const formatDownloads = (downloads) => {
+    if (!downloads) return "0";
+    if (downloads >= 1000) {
+      return (downloads / 1000).toFixed(1) + "k";
+    }
+    return downloads.toString();
   };
+
+  const handleDownload = (ebookId, title, fileName) => {
+    // Implement download logic here
+    toast.success(`Downloading: ${title}`);
+    // You can add actual download logic here
+  };
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredEbooks.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredEbooks.length / itemsPerPage);
 
   return (
     <div className="bg-white rounded-xl p-6">
@@ -334,7 +314,7 @@ const Ebooks = () => {
         </div>
       </div>
 
-      {/* Search Bar with Program Filter Dropdown (same as Books.jsx style) */}
+      {/* Search Bar with Program Filter Dropdown */}
       <div className="mb-6">
         <div className="flex gap-3">
           {/* Search Input */}
@@ -408,7 +388,7 @@ const Ebooks = () => {
         </div>
       </div>
 
-      {/* Ebooks Grid */}
+      {/* Ebooks Grid - Using EbookCard - Displaying 3 cards */}
       {loading ? (
         <div className="bg-white rounded-lg border border-gray-200 p-8">
           <div className="flex justify-center">
@@ -440,81 +420,18 @@ const Ebooks = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {currentItems.map((ebook) => {
-              const coverUrl = getCoverUrl(ebook);
-              const imageState = imageStates[ebook.id] || {
-                loading: true,
-                error: false,
-              };
-
-              return (
-                <div
-                  key={ebook.id}
-                  onClick={() => handleEbookClick(ebook)}
-                  className="group bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all duration-200 cursor-pointer overflow-hidden"
-                >
-                  {/* Cover Image */}
-                  <div className="relative w-full h-40 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                    {imageState.loading && coverUrl && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    {coverUrl && !imageState.error ? (
-                      <img
-                        src={coverUrl}
-                        alt={ebook.title}
-                        className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
-                          imageState.loading ? "opacity-0" : "opacity-100"
-                        }`}
-                        onLoad={() => handleImageLoad(ebook.id)}
-                        onError={() => handleImageError(ebook.id)}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <FileText className="w-12 h-12 text-gray-400" />
-                      </div>
-                    )}
-
-                    {/* Program Badge - using same color scheme as Books.jsx */}
-                    <div className="absolute top-2 left-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getProgramColor(ebook.program_name)}`}
-                      >
-                        {ebook.program_name}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-3">
-                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
-                      {ebook.title}
-                    </h3>
-                    <p
-                      className="text-xs text-gray-500 mb-2 truncate"
-                      title={ebook.file_name}
-                    >
-                      {truncateFileName(ebook.file_name)}
-                    </p>
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-1 text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        <span>{formatDate(ebook.created_at)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-500">
-                        <Download className="w-3 h-3" />
-                        <span>{ebook.downloads || 0}</span>
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs text-gray-400">
-                      {formatFileSize(ebook.file_size)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {currentItems.map((ebook) => (
+              <EbookCard
+                key={ebook.id}
+                ebook={ebook}
+                onDownload={handleDownload}
+                getProgramColor={getProgramColor}
+                formatDate={formatDate}
+                formatFileSize={formatFileSize}
+                formatDownloads={formatDownloads}
+              />
+            ))}
           </div>
 
           {/* Pagination */}

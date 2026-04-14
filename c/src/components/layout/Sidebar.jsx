@@ -11,6 +11,7 @@ import {
   LogOut,
   GraduationCap,
   Library,
+  Users,
 } from "lucide-react";
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -47,14 +48,15 @@ const Sidebar = ({ isOpen, onClose }) => {
     { path: "/my-ebooks", name: "My eBooks", icon: BookOpen },
     { path: "/books", name: "My Books", icon: Library },
     { path: "/programs", name: "Programs", icon: GraduationCap },
+    { path: "/users", name: "Admins", icon: Users },
     { path: "/settings", name: "Settings", icon: Settings },
   ];
 
   const getNavLinkClass = ({ isActive }) => {
     return `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
       isActive
-        ? "bg-primary text-white shadow-md"
-        : "text-gray-600 hover:bg-gray-100 hover:text-primary"
+        ? "bg-blue-600 text-white shadow-md"
+        : "text-gray-600 hover:bg-gray-100 hover:text-blue-600"
     } ${!isOpen ? "justify-center" : ""}`;
   };
 

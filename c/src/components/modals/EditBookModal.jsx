@@ -1,6 +1,8 @@
 // src/components/modals/EditBookModal.jsx
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import ModalPortal from "./ModalPortal";
+import Select from "../Select"; // Adjust path as needed
 
 const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -40,23 +42,28 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
     }));
   };
 
+  const handleProgramChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      program: value,
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     onUpdate(formData);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <ModalPortal isOpen={isOpen}>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        className="fixed inset-0 z-50 bg-black bg-opacity-50 transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 flex min-h-full items-center justify-center p-4">
         <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -117,23 +124,15 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Program *
-              </label>
-              <select
-                name="program"
+              <Select
+                label="Program *"
+                options={programOptions}
                 value={formData.program}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select a program</option>
-                {programOptions.map((program) => (
-                  <option key={program} value={program}>
-                    {program}
-                  </option>
-                ))}
-              </select>
+                onChange={handleProgramChange}
+                placeholder="Select a program"
+                isClearable={false}
+                required={true}
+              />
             </div>
 
             {/* Actions */}
@@ -155,7 +154,7 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
           </form>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 };
 
