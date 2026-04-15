@@ -1,10 +1,11 @@
-// src/pages/Login.jsx
+// src/pages/Login.jsx (updated version)
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Lock, Mail, LogIn, Eye, EyeOff } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import heroBg from "@/assets/images/heroBg.png";
+import { useAuth } from "@/context/AuthContext";
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -12,7 +13,9 @@ const Login = () => {
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -22,9 +25,17 @@ const Login = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate("/dashboard");
+    setLoading(true);
+
+    const result = await login(formData.email, formData.password);
+
+    if (result.success) {
+      navigate("/dashboard");
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -87,10 +98,11 @@ const Login = () => {
                       </label>
                       <div className="relative">
                         <input
-                          type="text"
+                          type="email"
                           name="email"
                           value={formData.email}
                           onChange={handleChange}
+                          required
                           className="w-full pl-10 pr-4 py-3 rounded-lg bg-white
                             focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
                             transition-all duration-200 text-gray-900 placeholder-gray-600"
@@ -112,6 +124,7 @@ const Login = () => {
                           name="password"
                           value={formData.password}
                           onChange={handleChange}
+                          required
                           className="w-full pl-10 pr-12 py-3 rounded-lg bg-white
                             focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
                             transition-all duration-200 text-gray-900 placeholder-gray-600"
@@ -149,15 +162,16 @@ const Login = () => {
                   {/* Submit Button */}
                   <button
                     type="submit"
+                    disabled={loading}
                     className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-700 
                       text-white font-medium rounded-lg transition-all duration-200 
                       inline-flex items-center justify-center gap-2 text-lg 
-                      shadow-lg hover:shadow-xl
+                      shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed
                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 
                       focus:ring-offset-transparent"
                   >
                     <LogIn className="w-5 h-5" />
-                    <span>Sign In</span>
+                    <span>{loading ? "Signing in..." : "Sign In"}</span>
                   </button>
                 </form>
               </div>

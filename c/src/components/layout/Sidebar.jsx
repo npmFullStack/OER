@@ -13,9 +13,11 @@ import {
   Library,
   Users,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -42,15 +44,26 @@ const Sidebar = ({ isOpen, onClose }) => {
     };
   }, [isMobile, isOpen]);
 
-  const menuItems = [
-    { path: "/dashboard", name: "Dashboard", icon: LayoutDashboard },
-    { path: "/upload", name: "Upload eBook", icon: Upload },
-    { path: "/my-ebooks", name: "My eBooks", icon: BookOpen },
-    { path: "/books", name: "My Books", icon: Library },
-    { path: "/programs", name: "Programs", icon: GraduationCap },
-    { path: "/users", name: "Admins", icon: Users },
-    { path: "/settings", name: "Settings", icon: Settings },
-  ];
+  // Define menu items based on user role
+  const getAllMenuItems = () => {
+    const items = [
+      { path: "/dashboard", name: "Dashboard", icon: LayoutDashboard },
+      { path: "/upload", name: "Upload eBook", icon: Upload },
+      { path: "/my-ebooks", name: "My eBooks", icon: BookOpen },
+      { path: "/books", name: "My Books", icon: Library },
+      { path: "/programs", name: "Programs", icon: GraduationCap },
+      { path: "/settings", name: "Settings", icon: Settings },
+    ];
+
+    // Only show Users menu for superadmin
+    if (user?.role === "superadmin") {
+      items.push({ path: "/users", name: "Admins", icon: Users });
+    }
+
+    return items;
+  };
+
+  const menuItems = getAllMenuItems();
 
   const getNavLinkClass = ({ isActive }) => {
     return `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
@@ -64,6 +77,40 @@ const Sidebar = ({ isOpen, onClose }) => {
     if (isMobile && onClose) {
       onClose();
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+    if (isMobile && onClose) {
+      onClose();
+    }
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const firstInitial = user.firstname
+      ? user.firstname.charAt(0).toUpperCase()
+      : "";
+    const lastInitial = user.lastname
+      ? user.lastname.charAt(0).toUpperCase()
+      : "";
+    return firstInitial + lastInitial || "U";
+  };
+
+  // Get full name
+  const getFullName = () => {
+    if (!user) return "Admin User";
+    return (
+      `${user.firstname || ""} ${user.lastname || ""}`.trim() || "Admin User"
+    );
+  };
+
+  // Get user role display
+  const getRoleDisplay = () => {
+    if (!user) return "";
+    return user.role === "superadmin" ? "Super Admin" : "Admin";
   };
 
   const sidebarContent = (
@@ -101,21 +148,23 @@ const Sidebar = ({ isOpen, onClose }) => {
         {isOpen ? (
           <div className="space-y-2">
             <div className="flex items-center gap-3 px-3 py-2.5">
-              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="w-4 h-4 text-primary" />
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-medium">
+                  {getUserInitials()}
+                </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  Admin User
+                  {getFullName()}
                 </p>
-                <p className="text-xs text-gray-500 truncate">admin@occ.edu</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                <p className="text-xs text-blue-600 truncate font-medium mt-0.5">
+                  {getRoleDisplay()}
+                </p>
               </div>
             </div>
             <button
-              onClick={() => {
-                navigate("/login");
-                handleLinkClick();
-              }}
+              onClick={handleLogout}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >
@@ -125,14 +174,13 @@ const Sidebar = ({ isOpen, onClose }) => {
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+              <span className="text-white text-sm font-medium">
+                {getUserInitials()}
+              </span>
             </div>
             <button
-              onClick={() => {
-                navigate("/login");
-                handleLinkClick();
-              }}
+              onClick={handleLogout}
               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >

@@ -11,11 +11,14 @@ import {
   LogOut,
   BookOpen,
   UserCircle,
+  Shield,
 } from "lucide-react";
 import logoSvg from "@/assets/images/logo.svg";
+import { useAuth } from "@/context/AuthContext";
 
 const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -56,14 +59,49 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const firstInitial = user.firstname
+      ? user.firstname.charAt(0).toUpperCase()
+      : "";
+    const lastInitial = user.lastname
+      ? user.lastname.charAt(0).toUpperCase()
+      : "";
+    return firstInitial + lastInitial || "U";
+  };
+
+  // Get full name
+  const getFullName = () => {
+    if (!user) return "Admin User";
+    return (
+      `${user.firstname || ""} ${user.lastname || ""}`.trim() || "Admin User"
+    );
+  };
+
+  // Get role badge color
+  const getRoleBadgeClass = () => {
+    if (user?.role === "superadmin") {
+      return "bg-purple-100 text-purple-700";
+    }
+    return "bg-blue-100 text-blue-700";
+  };
+
+  // Get role display text
+  const getRoleDisplay = () => {
+    if (user?.role === "superadmin") return "Super Admin";
+    return "Admin";
+  };
+
   return (
-    <nav className="bg-[#F5F5F5] fixed top-0 left-0 right-0 z-50">
+    <nav className="bg-[#F5F5F5] fixed top-0 left-0 right-0 z-50 border-b border-gray-200">
       <div className="px-4">
         <div className="flex items-center justify-between h-16">
           {/* Left section - Logo and menu toggle */}
@@ -194,14 +232,23 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-primary" />
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {getUserInitials()}
+                    </span>
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium text-gray-900">
-                      Admin User
+                      {getFullName()}
                     </p>
-                    <p className="text-xs text-gray-500">admin@occ.edu</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded ${getRoleBadgeClass()}`}
+                      >
+                        {getRoleDisplay()}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -211,16 +258,30 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                   {/* User info header */}
-                  <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-gray-100">
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
+                      <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {getUserInitials()}
+                        </span>
                       </div>
                       <div>
                         <p className="font-semibold text-gray-900">
-                          Admin User
+                          {getFullName()}
                         </p>
-                        <p className="text-xs text-gray-600">admin@occ.edu</p>
+                        <p className="text-xs text-gray-600">{user?.email}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {user?.role === "superadmin" ? (
+                            <Shield className="w-3 h-3 text-purple-600" />
+                          ) : (
+                            <User className="w-3 h-3 text-blue-600" />
+                          )}
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded ${getRoleBadgeClass()}`}
+                          >
+                            {getRoleDisplay()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

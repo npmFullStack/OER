@@ -6,14 +6,15 @@ import {
   Search,
   X,
   MoreVertical,
-  Trash2,
   Shield,
+  Crown,
   Ban,
   Unlock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import AddNewAdminModal from "@/components/modals/AddNewAdminModal";
 import WarningModal from "@/components/modals/WarningModal";
+import PromoteToSuperAdminModal from "@/components/modals/PromoteToSuperAdminModal";
 import Pagination from "@/components/Pagination";
 
 // Mock data for admins
@@ -23,6 +24,7 @@ const INITIAL_ADMINS = [
     firstName: "John",
     lastName: "Doe",
     email: "john.doe@example.com",
+    role: "super_admin",
     status: "active",
     lastActive: "2024-01-15T10:30:00",
     createdAt: "2023-01-01",
@@ -32,6 +34,7 @@ const INITIAL_ADMINS = [
     firstName: "Jane",
     lastName: "Smith",
     email: "jane.smith@example.com",
+    role: "admin",
     status: "active",
     lastActive: "2024-01-14T15:45:00",
     createdAt: "2023-02-15",
@@ -41,6 +44,7 @@ const INITIAL_ADMINS = [
     firstName: "Michael",
     lastName: "Johnson",
     email: "michael.johnson@example.com",
+    role: "admin",
     status: "restricted",
     lastActive: "2023-12-20T09:15:00",
     createdAt: "2023-03-10",
@@ -50,6 +54,7 @@ const INITIAL_ADMINS = [
     firstName: "Emily",
     lastName: "Williams",
     email: "emily.williams@example.com",
+    role: "admin",
     status: "active",
     lastActive: "2024-01-15T08:00:00",
     createdAt: "2023-04-05",
@@ -59,6 +64,7 @@ const INITIAL_ADMINS = [
     firstName: "David",
     lastName: "Brown",
     email: "david.brown@example.com",
+    role: "admin",
     status: "active",
     lastActive: "2024-01-13T14:20:00",
     createdAt: "2023-05-20",
@@ -69,10 +75,13 @@ const Users = () => {
   const [admins, setAdmins] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+  const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
   const [adminToAction, setAdminToAction] = useState(null);
-  const [actionType, setActionType] = useState(null); // 'restrict', 'unrestrict', 'delete'
+  const [actionType, setActionType] = useState(null); // 'restrict', 'unrestrict'
+  const [adminToPromote, setAdminToPromote] = useState(null);
   const [openActionMenu, setOpenActionMenu] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentUserRole, setCurrentUserRole] = useState("super_admin"); // Simulate current logged-in user role
@@ -99,8 +108,9 @@ const Users = () => {
       admin.email.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "" || admin.status === statusFilter;
+    const matchesRole = roleFilter === "" || admin.role === roleFilter;
 
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesRole;
   });
 
   // Pagination calculations
@@ -109,11 +119,14 @@ const Users = () => {
   const currentItems = filteredAdmins.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredAdmins.length / itemsPerPage);
 
-  const activeFilterCount = [searchTerm, statusFilter].filter(Boolean).length;
+  const activeFilterCount = [searchTerm, statusFilter, roleFilter].filter(
+    Boolean,
+  ).length;
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("");
+    setRoleFilter("");
     setCurrentPage(1);
   };
 
@@ -121,6 +134,7 @@ const Users = () => {
     const newAdmin = {
       id: Math.max(...admins.map((a) => a.id), 0) + 1,
       ...adminData,
+      role: "admin",
       status: "active",
       lastActive: new Date().toISOString(),
       createdAt: new Date().toISOString().split("T")[0],
@@ -145,11 +159,10 @@ const Users = () => {
     setIsWarningModalOpen(true);
   };
 
-  const handleDeleteClick = (admin) => {
+  const handlePromoteClick = (admin) => {
     setOpenActionMenu(null);
-    setAdminToAction(admin);
-    setActionType("delete");
-    setIsWarningModalOpen(true);
+    setAdminToPromote(admin);
+    setIsPromoteModalOpen(true);
   };
 
   const handleConfirmAction = () => {
@@ -175,11 +188,6 @@ const Users = () => {
       toast.success(
         `${adminToAction.firstName} ${adminToAction.lastName} has been unrestricted`,
       );
-    } else if (actionType === "delete" && adminToAction) {
-      setAdmins(admins.filter((a) => a.id !== adminToAction.id));
-      toast.success(
-        `${adminToAction.firstName} ${adminToAction.lastName} has been removed`,
-      );
     }
 
     setIsWarningModalOpen(false);
@@ -187,10 +195,32 @@ const Users = () => {
     setActionType(null);
   };
 
+  const handleConfirmPromote = () => {
+    if (adminToPromote) {
+      setAdmins(
+        admins.map((admin) =>
+          admin.id === adminToPromote.id
+            ? { ...admin, role: "super_admin" }
+            : admin,
+        ),
+      );
+      toast.success(
+        `${adminToPromote.firstName} ${adminToPromote.lastName} has been promoted to Super Admin`,
+      );
+    }
+    setIsPromoteModalOpen(false);
+    setAdminToPromote(null);
+  };
+
   const handleCancelAction = () => {
     setIsWarningModalOpen(false);
     setAdminToAction(null);
     setActionType(null);
+  };
+
+  const handleCancelPromote = () => {
+    setIsPromoteModalOpen(false);
+    setAdminToPromote(null);
   };
 
   const handlePageChange = (page) => {
@@ -239,7 +269,34 @@ const Users = () => {
     return null;
   };
 
-  const getActiveStatusDisplay = (lastActive) => {
+  const getRoleBadge = (role) => {
+    if (role === "super_admin") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+          <Crown className="w-3 h-3" />
+          Super Admin
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <Shield className="w-3 h-3" />
+          Admin
+        </span>
+      );
+    }
+  };
+
+  const getActiveStatusDisplay = (lastActive, status) => {
+    if (status === "restricted") {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+          <span className="text-sm text-gray-500">Restricted</span>
+        </div>
+      );
+    }
+
     const lastActiveDate = new Date(lastActive);
     const now = new Date();
     const diffMinutes = Math.floor((now - lastActiveDate) / 1000 / 60);
@@ -276,19 +333,12 @@ const Users = () => {
         confirmText: "Restrict",
         isDanger: true,
       };
-    } else if (actionType === "unrestrict") {
+    } else {
       return {
         title: "Unrestrict User",
         message: `Are you sure you want to unrestrict "${adminToAction?.firstName} ${adminToAction?.lastName}"? They will regain access to the system.`,
         confirmText: "Unrestrict",
         isDanger: false,
-      };
-    } else {
-      return {
-        title: "Remove Admin",
-        message: `Are you sure you want to remove "${adminToAction?.firstName} ${adminToAction?.lastName}" as an admin? This action can be reversed by adding them back.`,
-        confirmText: "Remove",
-        isDanger: true,
       };
     }
   };
@@ -300,9 +350,9 @@ const Users = () => {
       {/* Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Users</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Management</h1>
           <p className="mt-2 text-gray-600">
-            Manage system administrators and their permissions
+            Manage system administrators and their roles
           </p>
         </div>
         <button
@@ -310,7 +360,7 @@ const Users = () => {
           className="mt-4 sm:mt-0 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
         >
           <Plus className="w-5 h-5" />
-          New Admin
+          Add Admin
         </button>
       </div>
 
@@ -347,6 +397,22 @@ const Users = () => {
               <option value="restricted">Restricted</option>
             </select>
           </div>
+
+          {/* Role Filter Select */}
+          <div className="w-40">
+            <select
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="">All Roles</option>
+              <option value="super_admin">Super Admin</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
         </div>
 
         {/* Active Filters */}
@@ -369,6 +435,17 @@ const Users = () => {
                 Status: {statusFilter}
                 <button
                   onClick={() => setStatusFilter("")}
+                  className="hover:text-blue-600"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {roleFilter && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
+                Role: {roleFilter === "super_admin" ? "Super Admin" : "Admin"}
+                <button
+                  onClick={() => setRoleFilter("")}
                   className="hover:text-blue-600"
                 >
                   <X className="w-3 h-3" />
@@ -437,10 +514,13 @@ const Users = () => {
                     Email
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">
+                    Role
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">
                     Status
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">
-                    Active Status
+                    Online Status
                   </th>
                   <th className="px-4 py-3 text-center font-medium text-gray-600 w-12">
                     Actions
@@ -457,15 +537,12 @@ const Users = () => {
                       {admin.firstName} {admin.lastName}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{admin.email}</td>
+                    <td className="px-4 py-3">{getRoleBadge(admin.role)}</td>
                     <td className="px-4 py-3">
                       {getStatusBadge(admin.status)}
                     </td>
                     <td className="px-4 py-3">
-                      {admin.status === "active" ? (
-                        getActiveStatusDisplay(admin.lastActive)
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
+                      {getActiveStatusDisplay(admin.lastActive, admin.status)}
                     </td>
                     <td className="px-4 py-3 text-center relative">
                       <button
@@ -482,7 +559,7 @@ const Users = () => {
 
                       {/* Dropdown Menu */}
                       {openActionMenu === admin.id && (
-                        <div className="absolute right-4 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
+                        <div className="absolute right-4 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
                           {/* Restrict/Unrestrict based on status */}
                           {canModifyUsers &&
                             (admin.status === "restricted" ? (
@@ -503,13 +580,19 @@ const Users = () => {
                               </button>
                             ))}
 
-                          <button
-                            onClick={() => handleDeleteClick(admin)}
-                            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Remove Admin
-                          </button>
+                          {/* Promote to Super Admin - only show for regular admins */}
+                          {canModifyUsers && admin.role === "admin" && (
+                            <>
+                              <div className="border-t border-gray-100 my-1"></div>
+                              <button
+                                onClick={() => handlePromoteClick(admin)}
+                                className="w-full px-3 py-2 text-left text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2 transition-colors"
+                              >
+                                <Crown className="w-4 h-4" />
+                                Promote to Super Admin
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </td>
@@ -541,7 +624,7 @@ const Users = () => {
         onAdd={handleAddAdmin}
       />
 
-      {/* Warning Modal for Restrict/Unrestrict/Delete */}
+      {/* Warning Modal for Restrict/Unrestrict */}
       <WarningModal
         isOpen={isWarningModalOpen}
         onClose={handleCancelAction}
@@ -551,6 +634,15 @@ const Users = () => {
         confirmText={modalContent.confirmText}
         cancelText="Cancel"
         isDanger={modalContent.isDanger}
+      />
+
+      {/* Promote to Super Admin Modal */}
+      <PromoteToSuperAdminModal
+        isOpen={isPromoteModalOpen}
+        onClose={handleCancelPromote}
+        onConfirm={handleConfirmPromote}
+        adminName={`${adminToPromote?.firstName} ${adminToPromote?.lastName}`}
+        adminEmail={adminToPromote?.email}
       />
     </div>
   );

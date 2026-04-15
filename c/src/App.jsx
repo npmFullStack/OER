@@ -15,6 +15,7 @@ import SearchResults from "@/pages/SearchResults";
 import EbookDetails from "@/pages/EbookDetails";
 import EbookRecord from "@/pages/EbookRecord";
 import ProtectedLayout from "@/components/layout/ProtectedLayout";
+import RoleGuard from "@/components/guards/RoleGuard";
 import Programs from "@/pages/Programs";
 import AddProgram from "@/pages/AddProgram";
 import AllEbooks from "@/pages/AllEbooks";
@@ -68,7 +69,7 @@ const App = () => {
           element={<EbooksByProgram />}
         />
 
-        {/* Protected routes */}
+        {/* Protected routes - accessible by both superadmin and admin */}
         <Route element={<ProtectedLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/upload" element={<UploadEbook />} />
@@ -80,8 +81,6 @@ const App = () => {
           <Route path="/books/new" element={<NewBook />} />
           <Route path="/books/import" element={<ImportBooks />} />
 
-          <Route path="/users" element={<Users />} />
-
           <Route path="/ebook-record/:id" element={<EbookRecord />} />
           <Route path="/programs" element={<Programs />} />
           <Route path="/programs/add" element={<AddProgram />} />
@@ -91,6 +90,16 @@ const App = () => {
           <Route
             path="/notifications"
             element={<div>Notifications Page</div>}
+          />
+
+          {/* Users route - ONLY accessible by superadmin */}
+          <Route
+            path="/users"
+            element={
+              <RoleGuard allowedRoles={["superadmin"]}>
+                <Users />
+              </RoleGuard>
+            }
           />
         </Route>
       </Routes>
