@@ -1,4 +1,4 @@
-// src/pages/Users.jsx
+// src/pages/Users.jsx (Updated version)
 import React, { useState, useEffect } from "react";
 import {
   Users as UsersIcon,
@@ -16,60 +16,8 @@ import AddNewAdminModal from "@/components/modals/AddNewAdminModal";
 import WarningModal from "@/components/modals/WarningModal";
 import PromoteToSuperAdminModal from "@/components/modals/PromoteToSuperAdminModal";
 import Pagination from "@/components/Pagination";
-
-// Mock data for admins
-const INITIAL_ADMINS = [
-  {
-    id: 1,
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
-    role: "super_admin",
-    status: "active",
-    lastActive: "2024-01-15T10:30:00",
-    createdAt: "2023-01-01",
-  },
-  {
-    id: 2,
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@example.com",
-    role: "admin",
-    status: "active",
-    lastActive: "2024-01-14T15:45:00",
-    createdAt: "2023-02-15",
-  },
-  {
-    id: 3,
-    firstName: "Michael",
-    lastName: "Johnson",
-    email: "michael.johnson@example.com",
-    role: "admin",
-    status: "restricted",
-    lastActive: "2023-12-20T09:15:00",
-    createdAt: "2023-03-10",
-  },
-  {
-    id: 4,
-    firstName: "Emily",
-    lastName: "Williams",
-    email: "emily.williams@example.com",
-    role: "admin",
-    status: "active",
-    lastActive: "2024-01-15T08:00:00",
-    createdAt: "2023-04-05",
-  },
-  {
-    id: 5,
-    firstName: "David",
-    lastName: "Brown",
-    email: "david.brown@example.com",
-    role: "admin",
-    status: "active",
-    lastActive: "2024-01-13T14:20:00",
-    createdAt: "2023-05-20",
-  },
-];
+import adminService from "@/services/admin.service";
+import { useAuth } from "@/context/AuthContext";
 
 const Users = () => {
   const [admins, setAdmins] = useState([]);
@@ -80,24 +28,38 @@ const Users = () => {
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
   const [adminToAction, setAdminToAction] = useState(null);
-  const [actionType, setActionType] = useState(null); // 'restrict', 'unrestrict'
+  const [actionType, setActionType] = useState(null);
   const [adminToPromote, setAdminToPromote] = useState(null);
   const [openActionMenu, setOpenActionMenu] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentUserRole, setCurrentUserRole] = useState("super_admin"); // Simulate current logged-in user role
+  const [currentUserRole, setCurrentUserRole] = useState("super_admin");
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  const { user } = useAuth();
+
   useEffect(() => {
-    // Simulate async fetch
-    const timer = setTimeout(() => {
-      setAdmins(INITIAL_ADMINS);
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchAdmins();
+    // Get current user role and ID from auth context
+    if (user) {
+      setCurrentUserRole(user.role === "superadmin" ? "super_admin" : "admin");
+      setCurrentUserId(user.id);
+    }
+  }, [user]);
+
+  const fetchAdmins = async () => {
+    setLoading(true);
+    const result = await adminService.getAllAdmins();
+    if (result.admins) {
+      setAdmins(result.admins);
+    } else if (result.error) {
+      toast.error(result.error);
+    }
+    setLoading(false);
+  };
 
   // Filter admins
   const filteredAdmins = admins.filter((admin) => {
@@ -130,19 +92,21 @@ const Users = () => {
     setCurrentPage(1);
   };
 
-  const handleAddAdmin = (adminData) => {
-    const newAdmin = {
-      id: Math.max(...admins.map((a) => a.id), 0) + 1,
-      ...adminData,
-      role: "admin",
-      status: "active",
-      lastActive: new Date().toISOString(),
-      createdAt: new Date().toISOString().split("T")[0],
-    };
-    setAdmins([newAdmin, ...admins]);
-    toast.success(
-      `${adminData.firstName} ${adminData.lastName} has been added as an admin`,
-    );
+  // Update the handleAddAdmin function in Users.jsx (find this function and replace it)
+  const handleAddAdmin = async (adminData) => {
+    const result = await adminService.addAdmin(adminData, currentUserId);
+    if (result.success) {
+      toast.success(
+        `${adminData.firstName} ${adminData.lastName} has been added as an admin. Default password: ${result.password}`,
+        {
+          duration: 8000, // Show longer for password visibility
+        },
+      );
+      await fetchAdmins(); // Refresh the list
+      return result; // Return result to show password in modal
+    } else {
+      toast.error(result.error || "Failed to add admin");
+    }
   };
 
   const handleRestrictClick = (admin) => {
@@ -165,29 +129,33 @@ const Users = () => {
     setIsPromoteModalOpen(true);
   };
 
-  const handleConfirmAction = () => {
+  const handleConfirmAction = async () => {
     if (actionType === "restrict" && adminToAction) {
-      setAdmins(
-        admins.map((admin) =>
-          admin.id === adminToAction.id
-            ? { ...admin, status: "restricted" }
-            : admin,
-        ),
+      const result = await adminService.restrictUser(
+        adminToAction.id,
+        currentUserId,
       );
-      toast.success(
-        `${adminToAction.firstName} ${adminToAction.lastName} has been restricted`,
-      );
+      if (result.success) {
+        toast.success(
+          `${adminToAction.firstName} ${adminToAction.lastName} has been restricted`,
+        );
+        await fetchAdmins(); // Refresh the list
+      } else {
+        toast.error(result.error || "Failed to restrict user");
+      }
     } else if (actionType === "unrestrict" && adminToAction) {
-      setAdmins(
-        admins.map((admin) =>
-          admin.id === adminToAction.id
-            ? { ...admin, status: "active" }
-            : admin,
-        ),
+      const result = await adminService.unrestrictUser(
+        adminToAction.id,
+        currentUserId,
       );
-      toast.success(
-        `${adminToAction.firstName} ${adminToAction.lastName} has been unrestricted`,
-      );
+      if (result.success) {
+        toast.success(
+          `${adminToAction.firstName} ${adminToAction.lastName} has been unrestricted`,
+        );
+        await fetchAdmins(); // Refresh the list
+      } else {
+        toast.error(result.error || "Failed to unrestrict user");
+      }
     }
 
     setIsWarningModalOpen(false);
@@ -195,18 +163,20 @@ const Users = () => {
     setActionType(null);
   };
 
-  const handleConfirmPromote = () => {
+  const handleConfirmPromote = async () => {
     if (adminToPromote) {
-      setAdmins(
-        admins.map((admin) =>
-          admin.id === adminToPromote.id
-            ? { ...admin, role: "super_admin" }
-            : admin,
-        ),
+      const result = await adminService.promoteToSuperAdmin(
+        adminToPromote.id,
+        currentUserId,
       );
-      toast.success(
-        `${adminToPromote.firstName} ${adminToPromote.lastName} has been promoted to Super Admin`,
-      );
+      if (result.success) {
+        toast.success(
+          `${adminToPromote.firstName} ${adminToPromote.lastName} has been promoted to Super Admin`,
+        );
+        await fetchAdmins(); // Refresh the list
+      } else {
+        toast.error(result.error || "Failed to promote user");
+      }
     }
     setIsPromoteModalOpen(false);
     setAdminToPromote(null);
@@ -321,10 +291,8 @@ const Users = () => {
     }
   };
 
-  // Check if current user can modify users (only super admin can)
   const canModifyUsers = currentUserRole === "super_admin";
 
-  // Get warning modal content based on action type
   const getWarningModalContent = () => {
     if (actionType === "restrict") {
       return {
@@ -367,7 +335,6 @@ const Users = () => {
       {/* Search and Filter Bar */}
       <div className="mb-6">
         <div className="flex gap-3">
-          {/* Search Input */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -382,7 +349,6 @@ const Users = () => {
             />
           </div>
 
-          {/* Status Filter Select */}
           <div className="w-40">
             <select
               value={statusFilter}
@@ -398,7 +364,6 @@ const Users = () => {
             </select>
           </div>
 
-          {/* Role Filter Select */}
           <div className="w-40">
             <select
               value={roleFilter}
@@ -415,7 +380,6 @@ const Users = () => {
           </div>
         </div>
 
-        {/* Active Filters */}
         {activeFilterCount > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs text-gray-500">Active filters:</span>
@@ -557,10 +521,8 @@ const Users = () => {
                         <MoreVertical className="w-5 h-5 text-gray-500" />
                       </button>
 
-                      {/* Dropdown Menu */}
                       {openActionMenu === admin.id && (
                         <div className="absolute right-4 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                          {/* Restrict/Unrestrict based on status */}
                           {canModifyUsers &&
                             (admin.status === "restricted" ? (
                               <button
@@ -580,7 +542,6 @@ const Users = () => {
                               </button>
                             ))}
 
-                          {/* Promote to Super Admin - only show for regular admins */}
                           {canModifyUsers && admin.role === "admin" && (
                             <>
                               <div className="border-t border-gray-100 my-1"></div>
@@ -602,7 +563,6 @@ const Users = () => {
             </table>
           </div>
 
-          {/* Pagination Component */}
           {totalPages > 1 && (
             <div className="mt-6">
               <Pagination
@@ -615,7 +575,6 @@ const Users = () => {
         </>
       )}
 
-      {/* Add New Admin Modal */}
       <AddNewAdminModal
         isOpen={isAddModalOpen}
         onClose={() => {
@@ -624,7 +583,6 @@ const Users = () => {
         onAdd={handleAddAdmin}
       />
 
-      {/* Warning Modal for Restrict/Unrestrict */}
       <WarningModal
         isOpen={isWarningModalOpen}
         onClose={handleCancelAction}
@@ -636,7 +594,6 @@ const Users = () => {
         isDanger={modalContent.isDanger}
       />
 
-      {/* Promote to Super Admin Modal */}
       <PromoteToSuperAdminModal
         isOpen={isPromoteModalOpen}
         onClose={handleCancelPromote}

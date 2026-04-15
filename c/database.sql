@@ -1,5 +1,6 @@
 -- ============================================
 -- COMPLETE DATABASE SETUP FOR OCC eLIBRARY
+-- WITH EMAIL NOTIFICATIONS
 -- ============================================
 
 -- Enable required extensions
@@ -14,7 +15,7 @@ DROP TABLE IF EXISTS public.user_sessions CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
 -- ============================================
--- CREATE USERS TABLE
+-- CREATE USERS TABLE (Updated to match component)
 -- ============================================
 CREATE TABLE public.users (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -35,7 +36,7 @@ CREATE TABLE public.users (
 CREATE TABLE public.user_sessions (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
-    token TEXT,
+    token TEXT UNIQUE NOT NULL,
     device_info TEXT,
     ip_address TEXT,
     expires_at TIMESTAMP WITH TIME ZONE,
@@ -56,6 +57,21 @@ CREATE TABLE public.activity_logs (
 );
 
 -- ============================================
+-- CREATE PENDING INVITES TABLE FOR NEW ADMINS
+-- ============================================
+CREATE TABLE public.pending_invites (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    firstname VARCHAR(100) NOT NULL,
+    lastname VARCHAR(100) NOT NULL,
+    temp_password TEXT NOT NULL,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES public.users(id)
+);
+
+-- ============================================
 -- CREATE INDEXES
 -- ============================================
 CREATE INDEX idx_users_email ON public.users(email);
@@ -64,6 +80,8 @@ CREATE INDEX idx_user_sessions_user_id ON public.user_sessions(user_id);
 CREATE INDEX idx_user_sessions_token ON public.user_sessions(token);
 CREATE INDEX idx_activity_logs_user_id ON public.activity_logs(user_id);
 CREATE INDEX idx_activity_logs_created_at ON public.activity_logs(created_at);
+CREATE INDEX idx_pending_invites_email ON public.pending_invites(email);
+CREATE INDEX idx_pending_invites_token ON public.pending_invites(token);
 
 -- ============================================
 -- CREATE FUNCTION FOR UPDATED_AT TIMESTAMP
@@ -105,9 +123,116 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
+-- CREATE FUNCTION TO HASH PASSWORD ON INSERT/UPDATE
+-- ============================================
+CREATE OR REPLACE FUNCTION hash_password_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only hash if password_hash is provided and not already hashed
+    IF NEW.password_hash IS NOT NULL AND NEW.password_hash NOT LIKE '$2a$%' AND NEW.password_hash NOT LIKE '$2b$%' THEN
+        NEW.password_hash := crypt(NEW.password_hash, gen_salt('bf'));
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
+-- CREATE TRIGGER FOR PASSWORD HASHING
+-- ============================================
+DROP TRIGGER IF EXISTS hash_password_on_insert ON public.users;
+CREATE TRIGGER hash_password_on_insert
+    BEFORE INSERT OR UPDATE OF password_hash ON public.users
+    FOR EACH ROW
+    EXECUTE FUNCTION hash_password_trigger();
+
+-- ============================================
+-- FUNCTION TO CREATE USER FROM INVITE
+-- ============================================
+CREATE OR REPLACE FUNCTION accept_invite(
+    p_token TEXT,
+    p_new_password TEXT
+)
+RETURNS TABLE(user_id UUID, user_email TEXT) AS $$
+DECLARE
+    v_invite RECORD;
+    v_user_id UUID;
+BEGIN
+    -- Get the invite
+    SELECT * INTO v_invite 
+    FROM public.pending_invites 
+    WHERE token = p_token AND expires_at > NOW();
+    
+    IF v_invite IS NULL THEN
+        RAISE EXCEPTION 'Invalid or expired invite token';
+    END IF;
+    
+    -- Check if user already exists
+    IF EXISTS (SELECT 1 FROM public.users WHERE email = v_invite.email) THEN
+        DELETE FROM public.pending_invites WHERE token = p_token;
+        RAISE EXCEPTION 'User already exists';
+    END IF;
+    
+    -- Create the user
+    INSERT INTO public.users (firstname, lastname, email, password_hash, role, is_active)
+    VALUES (
+        v_invite.firstname,
+        v_invite.lastname,
+        v_invite.email,
+        p_new_password,
+        'admin',
+        true
+    )
+    RETURNING id, email INTO v_user_id, user_email;
+    
+    -- Delete the invite
+    DELETE FROM public.pending_invites WHERE token = p_token;
+    
+    -- Return the user info
+    user_id := v_user_id;
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
+-- FUNCTION TO CREATE INVITE (by superadmin)
+-- ============================================
+CREATE OR REPLACE FUNCTION create_admin_invite(
+    p_firstname TEXT,
+    p_lastname TEXT,
+    p_email TEXT,
+    p_created_by UUID
+)
+RETURNS TABLE(invite_token TEXT, temp_password TEXT) AS $$
+DECLARE
+    v_token TEXT;
+    v_temp_password TEXT;
+BEGIN
+    -- Generate random token and password
+    v_token := encode(gen_random_bytes(32), 'hex');
+    v_temp_password := substring(md5(random()::text) from 1 for 10);
+    
+    -- Check if user already exists
+    IF EXISTS (SELECT 1 FROM public.users WHERE email = p_email) THEN
+        RAISE EXCEPTION 'User with this email already exists';
+    END IF;
+    
+    -- Delete any existing invite for this email
+    DELETE FROM public.pending_invites WHERE email = p_email;
+    
+    -- Create the invite
+    INSERT INTO public.pending_invites (email, firstname, lastname, temp_password, token, expires_at, created_by)
+    VALUES (p_email, p_firstname, p_lastname, v_temp_password, v_token, NOW() + INTERVAL '7 days', p_created_by)
+    RETURNING token, temp_password INTO v_token, v_temp_password;
+    
+    invite_token := v_token;
+    temp_password := v_temp_password;
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
 -- SEEDER: INSERT SUPERADMIN USER
 -- ============================================
--- First, check if user exists and update/insert accordingly
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM public.users WHERE email = 'admin@occ.edu') THEN
@@ -128,7 +253,7 @@ BEGIN
             'OCCLIB',
             'ADMIN',
             'admin@occ.edu',
-            crypt('password', gen_salt('bf')),
+            'password',
             'superadmin',
             true
         );
@@ -136,68 +261,19 @@ BEGIN
 END $$;
 
 -- ============================================
--- VERIFY SEEDER (This will show the user data)
+-- VERIFY SEEDER
 -- ============================================
 SELECT id, firstname, lastname, email, role, is_active, created_at 
 FROM public.users 
 WHERE email = 'admin@occ.edu';
 
--- Test password verification (should return true)
-SELECT verify_password('admin@occ.edu', 'password') as password_valid;
-
 -- ============================================
 -- DISABLE RLS TEMPORARILY FOR DEVELOPMENT
 -- ============================================
--- This allows you to test without RLS restrictions
--- You can enable RLS later after testing
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
-
--- ============================================
--- OPTIONAL: ENABLE RLS WITH PROPER POLICIES
--- Uncomment these lines if you want to enable RLS
--- ============================================
--- ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
--- 
--- -- Users policies
--- CREATE POLICY "Users can view their own profile"
---     ON public.users FOR SELECT
---     USING (auth.uid() = id);
--- 
--- CREATE POLICY "Users can update their own profile"
---     ON public.users FOR UPDATE
---     USING (auth.uid() = id);
--- 
--- CREATE POLICY "Superadmins can view all users"
---     ON public.users FOR SELECT
---     USING (EXISTS (
---         SELECT 1 FROM public.users 
---         WHERE id = auth.uid() AND role = 'superadmin'
---     ));
--- 
--- -- User sessions policies
--- CREATE POLICY "Users can view their own sessions"
---     ON public.user_sessions FOR SELECT
---     USING (auth.uid() = user_id);
--- 
--- CREATE POLICY "Users can insert their own sessions"
---     ON public.user_sessions FOR INSERT
---     WITH CHECK (auth.uid() = user_id);
--- 
--- -- Activity logs policies
--- CREATE POLICY "Users can view their own activity logs"
---     ON public.activity_logs FOR SELECT
---     USING (auth.uid() = user_id);
--- 
--- CREATE POLICY "Superadmins can view all activity logs"
---     ON public.activity_logs FOR SELECT
---     USING (EXISTS (
---         SELECT 1 FROM public.users 
---         WHERE id = auth.uid() AND role = 'superadmin'
---     ));
+ALTER TABLE public.pending_invites DISABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- SUCCESS MESSAGE
@@ -211,8 +287,6 @@ BEGIN
     RAISE NOTICE 'Email: admin@occ.edu';
     RAISE NOTICE 'Password: password';
     RAISE NOTICE '==========================================';
-    RAISE NOTICE 'RLS is DISABLED for development';
-    RAISE NOTICE 'You can enable RLS later by uncommenting';
-    RAISE NOTICE 'the RLS policies section';
+    RAISE NOTICE 'Email notifications will be sent via API';
     RAISE NOTICE '==========================================';
 END $$;

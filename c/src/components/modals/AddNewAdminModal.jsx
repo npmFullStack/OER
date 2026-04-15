@@ -1,6 +1,6 @@
-// src/components/modals/AddNewAdminModal.jsx
+// src/components/modals/AddNewAdminModal.jsx (Updated version)
 import React, { useState, useEffect } from "react";
-import { X, Mail, User } from "lucide-react";
+import { X, Mail, User, AlertCircle, Key } from "lucide-react";
 import ModalPortal from "./ModalPortal";
 
 const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
@@ -11,6 +11,7 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdPassword, setCreatedPassword] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -20,6 +21,7 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
         email: "",
       });
       setErrors({});
+      setCreatedPassword(null);
     }
   }, [isOpen]);
 
@@ -30,12 +32,18 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
       newErrors.firstName = "First name is required";
     } else if (formData.firstName.length < 2) {
       newErrors.firstName = "First name must be at least 2 characters";
+    } else if (!/^[a-zA-Z\s\-']+$/.test(formData.firstName)) {
+      newErrors.firstName =
+        "First name can only contain letters, spaces, hyphens, and apostrophes";
     }
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = "Last name is required";
     } else if (formData.lastName.length < 2) {
       newErrors.lastName = "Last name must be at least 2 characters";
+    } else if (!/^[a-zA-Z\s\-']+$/.test(formData.lastName)) {
+      newErrors.lastName =
+        "Last name can only contain letters, spaces, hyphens, and apostrophes";
     }
 
     if (!formData.email.trim()) {
@@ -72,20 +80,89 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    onAdd(formData);
-
-    setIsSubmitting(false);
-    onClose();
+    try {
+      const result = await onAdd(formData);
+      if (result && result.password) {
+        setCreatedPassword(result.password);
+      } else {
+        // If no password returned, close modal
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error adding admin:", error);
+      setIsSubmitting(false);
+    }
   };
 
   const handleClose = () => {
     if (!isSubmitting) {
+      setCreatedPassword(null);
       onClose();
     }
   };
+
+  const handleDone = () => {
+    setCreatedPassword(null);
+    onClose();
+  };
+
+  // Success view with password
+  if (createdPassword) {
+    return (
+      <ModalPortal isOpen={isOpen}>
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-50 transition-opacity"
+          onClick={handleDone}
+        />
+        <div className="fixed inset-0 z-50 flex min-h-full items-center justify-center p-4">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                <svg
+                  className="h-6 w-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Admin Created Successfully!
+              </h3>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 my-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Key className="w-4 h-4 text-yellow-600" />
+                  <p className="text-sm font-medium text-yellow-800">
+                    Default Password:
+                  </p>
+                </div>
+                <p className="text-2xl font-mono font-bold text-yellow-900 text-center">
+                  {createdPassword}
+                </p>
+                <p className="text-xs text-yellow-700 mt-2 text-center">
+                  Please provide this password to the new admin.
+                  <br />
+                  They can change it after first login.
+                </p>
+              </div>
+              <button
+                onClick={handleDone}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+    );
+  }
 
   return (
     <ModalPortal isOpen={isOpen}>
@@ -141,7 +218,10 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
                 />
               </div>
               {errors.firstName && (
-                <p className="mt-1 text-xs text-red-600">{errors.firstName}</p>
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.firstName}
+                </p>
               )}
             </div>
 
@@ -170,7 +250,10 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
                 />
               </div>
               {errors.lastName && (
-                <p className="mt-1 text-xs text-red-600">{errors.lastName}</p>
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.lastName}
+                </p>
               )}
             </div>
 
@@ -199,16 +282,23 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-xs text-red-600">{errors.email}</p>
+                <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.email}
+                </p>
               )}
             </div>
 
-            {/* Info Note */}
-            <div className="bg-blue-50 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                <span className="font-medium">Note:</span> New admins will
-                receive a welcome email with instructions to set up their
-                account and password.
+            {/* Info Note - Updated for manual password */}
+            <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+              <p className="text-xs text-blue-800">
+                <span className="font-medium">🔐 Default Password:</span> New
+                admin will have the default password:{" "}
+                <span className="font-mono font-bold">password</span>
+              </p>
+              <p className="text-xs text-blue-700 mt-2">
+                You will see the password after creation. Please share it with
+                the new admin securely.
               </p>
             </div>
 
@@ -230,7 +320,7 @@ const AddNewAdminModal = ({ isOpen, onClose, onAdd }) => {
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Adding...
+                    Creating Admin...
                   </>
                 ) : (
                   "Add Admin"
