@@ -14,6 +14,7 @@ import {
   FileUp,
   Database,
   HelpCircle,
+  MapPin,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -25,6 +26,29 @@ const ImportBooks = () => {
   const [loading, setLoading] = useState(false);
   const [importPreview, setImportPreview] = useState(null);
   const [importMode, setImportMode] = useState("new"); // 'new' or 'update'
+
+  // Shelf location options for validation
+  const validShelfLocations = [
+    "Aisle 1 - Left",
+    "Aisle 1 - Right",
+    "Aisle 2 - Left",
+    "Aisle 2 - Right",
+    "Aisle 3 - Left",
+    "Aisle 3 - Right",
+    "Reference Section",
+    "Reserve Section",
+    "Periodical Section",
+    "Multimedia Section",
+  ];
+
+  const validPrograms = [
+    "BSIT",
+    "BSBA-FM",
+    "BSBA-MM",
+    "BSED",
+    "BEED",
+    "GEN ED",
+  ];
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -70,27 +94,44 @@ const ImportBooks = () => {
         total: 25,
         valid: 23,
         invalid: 2,
-        columns: ["title", "author", "call_number", "program"],
+        columns: [
+          "title",
+          "author",
+          "call_number",
+          "program",
+          "shelf_location",
+        ],
         sample: [
           {
-            title: "Sample Book 1",
+            title: "Introduction to Programming",
             author: "John Smith",
             call_number: "QA76.6 .S65 2024",
             program: "BSIT",
+            shelf_location: "Aisle 1 - Left",
             valid: true,
           },
           {
-            title: "Sample Book 2",
+            title: "Financial Management",
             author: "Jane Doe",
             call_number: "HF101 .D64 2024",
             program: "BSBA-FM",
+            shelf_location: "Aisle 3 - Right",
+            valid: true,
+          },
+          {
+            title: "Educational Psychology",
+            author: "Bob Wilson",
+            call_number: "ED101 .W55 2024",
+            program: "BSED",
+            shelf_location: "Reserve Section",
             valid: true,
           },
           {
             title: "", // Missing title
-            author: "Bob Wilson",
-            call_number: "ED101 .W55 2024",
-            program: "BSED",
+            author: "Invalid Author",
+            call_number: "INV001",
+            program: "INVALID",
+            shelf_location: "Invalid Location",
             valid: false,
           },
         ],
@@ -105,17 +146,40 @@ const ImportBooks = () => {
   };
 
   const downloadTemplate = () => {
-    // Create CSV template with only Title, Author, Call Number, Program
-    const headers = ["title", "author", "call_number", "program"].join(",");
-
-    const sampleRow = [
-      "Introduction to Programming",
-      "John Smith",
-      "QA76.6 .S65 2024",
-      "BSIT",
+    // Create CSV template with all required columns including shelf_location
+    const headers = [
+      "title",
+      "author",
+      "call_number",
+      "program",
+      "shelf_location",
     ].join(",");
 
-    const csvContent = `${headers}\n${sampleRow}`;
+    const sampleRows = [
+      [
+        "Introduction to Programming",
+        "John Smith",
+        "QA76.6 .S65 2024",
+        "BSIT",
+        "Aisle 1 - Left",
+      ].join(","),
+      [
+        "Financial Management",
+        "Jane Doe",
+        "HF101 .D64 2024",
+        "BSBA-FM",
+        "Aisle 3 - Right",
+      ].join(","),
+      [
+        "Data Structures",
+        "Robert Johnson",
+        "CS201 .J64 2024",
+        "BSIT",
+        "Aisle 1 - Right",
+      ].join(","),
+    ];
+
+    const csvContent = `${headers}\n${sampleRows.join("\n")}`;
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -398,6 +462,9 @@ const ImportBooks = () => {
                               Program
                             </th>
                             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                              Shelf Location
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
                               Status
                             </th>
                           </tr>
@@ -426,9 +493,35 @@ const ImportBooks = () => {
                                 {row.call_number}
                               </td>
                               <td className="px-3 py-2">
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <span
+                                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    validPrograms.includes(row.program)
+                                      ? "bg-gray-100 text-gray-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
                                   {row.program}
                                 </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-1.5">
+                                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                  <span
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                      validShelfLocations.includes(
+                                        row.shelf_location,
+                                      )
+                                        ? "bg-purple-100 text-purple-800"
+                                        : "bg-red-100 text-red-800"
+                                    }`}
+                                  >
+                                    {row.shelf_location || (
+                                      <span className="text-red-400 italic">
+                                        Missing
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
                               </td>
                               <td className="px-3 py-2">
                                 {row.valid ? (
@@ -509,7 +602,7 @@ const ImportBooks = () => {
                         Required Fields
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        title, author, call_number, program
+                        title, author, call_number, program, shelf_location
                       </p>
                     </div>
                   </div>
@@ -531,6 +624,21 @@ const ImportBooks = () => {
                   <div className="flex gap-3">
                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
                       4
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Shelf Location Options
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Aisle 1-3 (Left/Right), Reference, Reserve, Periodical,
+                        Multimedia
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
+                      5
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">
@@ -557,7 +665,8 @@ const ImportBooks = () => {
                     <li className="flex items-start gap-2">
                       <span className="text-blue-600">•</span>
                       <span>
-                        Title, Author, Call Number, and Program are required
+                        Title, Author, Call Number, Program, and Shelf Location
+                        are required
                       </span>
                     </li>
                     <li className="flex items-start gap-2">

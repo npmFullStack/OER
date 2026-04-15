@@ -1,12 +1,16 @@
-// src/pages/AddProgram.jsx
-import React, { useState } from "react";
+// src/pages/AddProgram.jsx (Updated to use real service)
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { GraduationCap, ArrowLeft, Save, Tag, Info } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
+import toast from "react-hot-toast";
+import programService from "@/services/program.service";
+import { useAuth } from "@/context/AuthContext";
 
 const AddProgram = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
   const isEditMode = !!id;
 
   const [formData, setFormData] = useState({
@@ -16,19 +20,65 @@ const AddProgram = () => {
   });
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fetchingProgram, setFetchingProgram] = useState(false);
+
+  useEffect(() => {
+    if (isEditMode) {
+      fetchProgram();
+    }
+  }, [id]);
+
+  const fetchProgram = async () => {
+    setFetchingProgram(true);
+    const result = await programService.getProgramById(id);
+    if (result.program) {
+      setFormData({
+        name: result.program.name,
+        acronym: result.program.acronym,
+        color: result.program.color,
+      });
+    } else if (result.error) {
+      toast.error(result.error);
+      navigate("/programs");
+    }
+    setFetchingProgram(false);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate form data
+    const validation = programService.validateProgramData(formData);
+    if (!validation.isValid) {
+      validation.errors.forEach((error) => toast.error(error));
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    let result;
+    if (isEditMode) {
+      result = await programService.updateProgram(id, formData, user?.id);
+    } else {
+      result = await programService.createProgram(formData, user?.id);
+    }
+
+    if (result.success) {
+      toast.success(
+        isEditMode
+          ? "Program updated successfully"
+          : "Program created successfully",
+      );
       navigate("/programs");
-    }, 1000);
+    } else {
+      toast.error(result.error || "Failed to save program");
+    }
+    setLoading(false);
   };
 
   const colorOptions = [
@@ -43,6 +93,16 @@ const AddProgram = () => {
     { value: "#f97316", label: "Orange" },
     { value: "#6b7280", label: "Gray" },
   ];
+
+  if (fetchingProgram) {
+    return (
+      <div className="bg-white rounded-xl p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl p-6">

@@ -10,10 +10,13 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  MapPin,
+  ChevronDown,
 } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import EditBookModal from "@/components/modals/EditBookModal";
 import WarningModal from "@/components/modals/WarningModal";
+import NewBookShelves from "@/components/modals/NewBookShelves"; // Adjust path as needed
 
 const Books = () => {
   const navigate = useNavigate();
@@ -25,6 +28,7 @@ const Books = () => {
       author: "John Smith, Jane Doe",
       call_number: "CS 101 .S65 2024",
       program: "BSIT",
+      shelf_location: "Aisle 1 - Left",
     },
     {
       id: 2,
@@ -32,6 +36,7 @@ const Books = () => {
       author: "Robert Johnson",
       call_number: "CS 201 .J64 2023",
       program: "BSIT",
+      shelf_location: "Aisle 1 - Right",
     },
     {
       id: 3,
@@ -39,6 +44,7 @@ const Books = () => {
       author: "Sarah Williams, Michael Brown",
       call_number: "WEB 301 .W55 2024",
       program: "BSIT",
+      shelf_location: "Aisle 2 - Left",
     },
     {
       id: 4,
@@ -46,6 +52,7 @@ const Books = () => {
       author: "David Chen",
       call_number: "DB 401 .C44 2023",
       program: "BSIT",
+      shelf_location: "Aisle 2 - Right",
     },
     {
       id: 5,
@@ -53,6 +60,7 @@ const Books = () => {
       author: "Stuart Russell, Peter Norvig",
       call_number: "AI 501 .R87 2024",
       program: "BSIT",
+      shelf_location: "Aisle 3 - Left",
     },
     {
       id: 6,
@@ -60,6 +68,7 @@ const Books = () => {
       author: "Robert Kiyosaki",
       call_number: "FM 101 .K59 2024",
       program: "BSBA-FM",
+      shelf_location: "Aisle 3 - Right",
     },
     {
       id: 7,
@@ -67,6 +76,7 @@ const Books = () => {
       author: "Philip Kotler",
       call_number: "MM 201 .K68 2023",
       program: "BSBA-MM",
+      shelf_location: "Reference Section",
     },
     {
       id: 8,
@@ -74,6 +84,7 @@ const Books = () => {
       author: "John Dewey",
       call_number: "ED 101 .D49 2024",
       program: "BSED",
+      shelf_location: "Reserve Section",
     },
     {
       id: 9,
@@ -81,6 +92,7 @@ const Books = () => {
       author: "Maria Montessori",
       call_number: "EC 201 .M67 2023",
       program: "BEED",
+      shelf_location: "Periodical Section",
     },
     {
       id: 10,
@@ -88,23 +100,27 @@ const Books = () => {
       author: "Howard Zinn",
       call_number: "GE 101 .Z56 2024",
       program: "GEN ED",
+      shelf_location: "Multimedia Section",
     },
   ]);
 
   const [filteredBooks, setFilteredBooks] = useState(books);
   const [searchTerm, setSearchTerm] = useState("");
   const [programFilter, setProgramFilter] = useState("");
+  const [shelfLocationFilter, setShelfLocationFilter] = useState("");
   const [openActionMenu, setOpenActionMenu] = useState(null);
+  const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+  const [isNewBookShelvesOpen, setIsNewBookShelvesOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [bookToDelete, setBookToDelete] = useState(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const [itemsPerPage, setItemsPerPage] = useState(5); // Changed to state variable
 
   // Program color mapping
   const getProgramColor = (program) => {
@@ -119,8 +135,28 @@ const Books = () => {
     return colors[program] || "bg-gray-100 text-gray-800";
   };
 
-  // Get unique programs for filter
+  // Shelf location color mapping
+  const getShelfLocationColor = (location) => {
+    const colors = {
+      "Aisle 1 - Left": "bg-purple-100 text-purple-800",
+      "Aisle 1 - Right": "bg-purple-100 text-purple-800",
+      "Aisle 2 - Left": "bg-indigo-100 text-indigo-800",
+      "Aisle 2 - Right": "bg-indigo-100 text-indigo-800",
+      "Aisle 3 - Left": "bg-pink-100 text-pink-800",
+      "Aisle 3 - Right": "bg-pink-100 text-pink-800",
+      "Reference Section": "bg-orange-100 text-orange-800",
+      "Reserve Section": "bg-teal-100 text-teal-800",
+      "Periodical Section": "bg-cyan-100 text-cyan-800",
+      "Multimedia Section": "bg-emerald-100 text-emerald-800",
+    };
+    return colors[location] || "bg-gray-100 text-gray-800";
+  };
+
+  // Get unique programs and shelf locations for filters
   const programOptions = [...new Set(books.map((book) => book.program))];
+  const shelfLocationOptions = [
+    ...new Set(books.map((book) => book.shelf_location)),
+  ];
 
   useEffect(() => {
     let filtered = [...books];
@@ -130,7 +166,8 @@ const Books = () => {
         (book) =>
           book.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          book.call_number?.toLowerCase().includes(searchTerm.toLowerCase()),
+          book.call_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          book.shelf_location?.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
 
@@ -138,16 +175,27 @@ const Books = () => {
       filtered = filtered.filter((book) => book.program === programFilter);
     }
 
+    if (shelfLocationFilter) {
+      filtered = filtered.filter(
+        (book) => book.shelf_location === shelfLocationFilter,
+      );
+    }
+
     setFilteredBooks(filtered);
     setCurrentPage(1);
-  }, [searchTerm, programFilter, books]);
+  }, [searchTerm, programFilter, shelfLocationFilter, books]);
 
   const clearFilters = () => {
     setSearchTerm("");
     setProgramFilter("");
+    setShelfLocationFilter("");
   };
 
-  const activeFilterCount = [searchTerm, programFilter].filter(Boolean).length;
+  const activeFilterCount = [
+    searchTerm,
+    programFilter,
+    shelfLocationFilter,
+  ].filter(Boolean).length;
 
   const handleEditBook = (book) => {
     setOpenActionMenu(null);
@@ -182,6 +230,36 @@ const Books = () => {
     setBookToDelete(null);
   };
 
+  const handleAddNewBook = () => {
+    setIsAddDropdownOpen(false);
+    navigate("/books/new");
+  };
+
+  const handleAddNewBookShelves = () => {
+    setIsAddDropdownOpen(false);
+    setIsNewBookShelvesOpen(true);
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (e) => {
+    const value = e.target.value;
+    setItemsPerPage(
+      value === "all" ? filteredBooks.length : parseInt(value, 10),
+    );
+    setCurrentPage(1); // Reset to first page when changing rows per page
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isAddDropdownOpen && !event.target.closest(".add-dropdown")) {
+        setIsAddDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isAddDropdownOpen]);
+
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -206,25 +284,54 @@ const Books = () => {
             <FileUp className="w-5 h-5" />
             Import
           </button>
-          <button
-            onClick={() => navigate("/books/new")}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            New Record
-          </button>
+
+          {/* Add Button with Dropdown */}
+          <div className="relative add-dropdown">
+            <button
+              onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              New
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  isAddDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isAddDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                <button
+                  onClick={handleAddNewBook}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                >
+                  <BookOpen className="w-4 h-4 text-gray-400" />
+                  New Book
+                </button>
+                <button
+                  onClick={handleAddNewBookShelves}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-t border-gray-100"
+                >
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  New Book Shelves
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Search Bar with Program Filter Dropdown */}
+      {/* Search Bar with Filters */}
       <div className="mb-6">
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           {/* Search Input */}
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by title, author, or call number..."
+              placeholder="Search by title, author, call number, or shelf..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
@@ -242,6 +349,22 @@ const Books = () => {
               {programOptions.map((program) => (
                 <option key={program} value={program}>
                   {program}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Shelf Location Filter Select */}
+          <div className="w-56">
+            <select
+              value={shelfLocationFilter}
+              onChange={(e) => setShelfLocationFilter(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="">All Shelf Locations</option>
+              {shelfLocationOptions.map((location) => (
+                <option key={location} value={location}>
+                  {location}
                 </option>
               ))}
             </select>
@@ -275,6 +398,17 @@ const Books = () => {
                   </button>
                 </span>
               )}
+              {shelfLocationFilter && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
+                  Shelf: {shelfLocationFilter}
+                  <button
+                    onClick={() => setShelfLocationFilter("")}
+                    className="hover:text-green-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
               <button
                 onClick={clearFilters}
                 className="text-xs text-gray-500 hover:text-gray-700 underline"
@@ -302,17 +436,42 @@ const Books = () => {
             No Books Found
           </h3>
           <p className="text-gray-600 mb-6">
-            {searchTerm || programFilter
+            {searchTerm || programFilter || shelfLocationFilter
               ? "Try adjusting your filters"
               : "Start by adding your first book record"}
           </p>
-          <button
-            onClick={() => navigate("/books/new")}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-          >
-            <Plus className="w-5 h-5" />
-            Add New Record
-          </button>
+          <div className="relative add-dropdown inline-block">
+            <button
+              onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Add New Record
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  isAddDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {isAddDropdownOpen && (
+              <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                <button
+                  onClick={handleAddNewBook}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <BookOpen className="w-4 h-4 text-gray-400" />
+                  New Book
+                </button>
+                <button
+                  onClick={handleAddNewBookShelves}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100"
+                >
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  New Book Shelves
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <>
@@ -331,6 +490,9 @@ const Books = () => {
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">
                     Program
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">
+                    Shelf Location
                   </th>
                   <th className="px-4 py-3 text-center font-medium text-gray-600 w-12">
                     Actions
@@ -379,6 +541,21 @@ const Books = () => {
                         {book.program}
                       </span>
                     </td>
+                    <td
+                      className="px-4 py-3 cursor-pointer"
+                      onClick={() =>
+                        navigate(`/books/${book.id}`, { state: { book } })
+                      }
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getShelfLocationColor(book.shelf_location)}`}
+                        >
+                          {book.shelf_location}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-center relative">
                       <button
                         onClick={() =>
@@ -418,12 +595,34 @@ const Books = () => {
             </table>
           </div>
 
-          {/* Pagination Component */}
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+          {/* Pagination Section with Rows Per Page Selector */}
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Rows per page selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show:</span>
+              <select
+                value={
+                  itemsPerPage === filteredBooks.length ? "all" : itemsPerPage
+                }
+                onChange={handleItemsPerPageChange}
+                className="px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white cursor-pointer"
+              >
+                <option value={5}>5 records</option>
+                <option value={20}>20 records</option>
+                <option value={100}>100 records</option>
+                <option value="all">All records</option>
+              </select>
+            </div>
+
+            {/* Pagination Component */}
+            {itemsPerPage !== filteredBooks.length && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </div>
         </>
       )}
 
@@ -440,6 +639,11 @@ const Books = () => {
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
         bookTitle={bookToDelete?.title}
+      />
+
+      <NewBookShelves
+        isOpen={isNewBookShelvesOpen}
+        onClose={() => setIsNewBookShelvesOpen(false)}
       />
     </div>
   );

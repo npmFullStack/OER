@@ -1,4 +1,4 @@
-// src/pages/ProgramDetails.jsx
+// src/pages/ProgramDetails.jsx (Updated with requested changes)
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
@@ -19,53 +19,13 @@ import EbookCard from "@/components/EbookCard";
 import EditProgramModal from "@/components/modals/EditProgramModal";
 import EditBookModal from "@/components/modals/EditBookModal";
 import WarningModal from "@/components/modals/WarningModal";
+import programService from "@/services/program.service";
+import { useAuth } from "@/context/AuthContext";
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const PROGRAMS = [
-  {
-    id: 1,
-    name: "Bachelor of Science in Information Technology",
-    acronym: "BSIT",
-    color: "#3b82f6",
-    created_at: "2023-01-15T08:00:00Z",
-  },
-  {
-    id: 2,
-    name: "Bachelor of Science in Computer Science",
-    acronym: "BSCS",
-    color: "#10b981",
-    created_at: "2023-02-20T08:00:00Z",
-  },
-  {
-    id: 3,
-    name: "Bachelor of Science in Computer Engineering",
-    acronym: "BSCpE",
-    color: "#f59e0b",
-    created_at: "2023-03-10T08:00:00Z",
-  },
-  {
-    id: 4,
-    name: "Bachelor of Science in Electronics Engineering",
-    acronym: "BSECE",
-    color: "#8b5cf6",
-    created_at: "2023-04-05T08:00:00Z",
-  },
-  {
-    id: 5,
-    name: "Bachelor of Science in Electrical Engineering",
-    acronym: "BSEE",
-    color: "#ef4444",
-    created_at: "2023-05-12T08:00:00Z",
-  },
-  {
-    id: 6,
-    name: "Bachelor of Science in Mechanical Engineering",
-    acronym: "BSME",
-    color: "#06b6d4",
-    created_at: "2023-06-18T08:00:00Z",
-  },
-];
+// Import no results image
+import noSearchFound from "@/assets/images/noSearchFound.png";
 
+// Mock data for eBooks and Books (replace with real service when available)
 const ALL_EBOOKS = [
   {
     id: "1",
@@ -287,7 +247,6 @@ const ALL_BOOKS = [
     program: "BSCpE",
   },
 ];
-// ─────────────────────────────────────────────────────────────────────────────
 
 const formatDownloads = (n) => {
   if (!n && n !== 0) return "0";
@@ -301,22 +260,16 @@ const formatFileSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-// Program color mapping for badge styling (like program column)
-const getProgramColor = (programName) => {
-  const colors = {
-    BSIT: "bg-red-100 text-red-800",
-    BSCS: "bg-green-100 text-green-800",
-    BSCpE: "bg-yellow-100 text-yellow-800",
-    BSECE: "bg-purple-100 text-purple-800",
-    BSEE: "bg-orange-100 text-orange-800",
-    BSME: "bg-cyan-100 text-cyan-800",
-  };
-  return colors[programName] || "bg-gray-100 text-gray-800";
-};
+// Program badge styling using the program's color
+const getProgramBadgeStyle = (color, acronym) => ({
+  backgroundColor: color || "#3b82f6",
+  color: "#ffffff",
+});
 
 const ProgramDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [program, setProgram] = useState(null);
   const [ebooks, setEbooks] = useState([]);
@@ -334,47 +287,70 @@ const ProgramDetails = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteType, setDeleteType] = useState(null); // 'program' or 'book'
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const itemsPerPage = 6;
 
   useEffect(() => {
-    // Simulate async fetch from mock data
-    const timer = setTimeout(() => {
-      const foundProgram = PROGRAMS.find((p) => String(p.id) === String(id));
-      if (foundProgram) {
-        setProgram(foundProgram);
-        const programEbooks = ALL_EBOOKS.filter(
-          (e) => String(e.program_id) === String(id),
-        ).map((ebook) => ({
-          ...ebook,
-          program_name: foundProgram.acronym,
-        }));
-        const programBooks = ALL_BOOKS.filter(
-          (b) => String(b.program_id) === String(id),
-        );
-        setEbooks(programEbooks);
-        setBooks(programBooks);
-      } else {
-        setError("Program not found.");
-      }
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
+    fetchProgram();
   }, [id]);
+
+  const fetchProgram = async () => {
+    setLoading(true);
+    setError(null);
+
+    const result = await programService.getProgramById(id);
+
+    if (result.program) {
+      setProgram(result.program);
+
+      // Filter eBooks and Books for this program
+      // Note: Replace with actual API calls when book/eBook services are ready
+      const programEbooks = ALL_EBOOKS.filter(
+        (e) => String(e.program_id) === String(id),
+      ).map((ebook) => ({
+        ...ebook,
+        program_name: result.program.acronym,
+      }));
+
+      const programBooks = ALL_BOOKS.filter(
+        (b) => String(b.program_id) === String(id),
+      );
+
+      setEbooks(programEbooks);
+      setBooks(programBooks);
+    } else if (result.error) {
+      setError(result.error);
+    }
+
+    setLoading(false);
+  };
 
   const handleEditProgram = () => {
     setIsEditProgramModalOpen(true);
   };
 
-  const handleUpdateProgram = (updatedProgram) => {
-    setProgram(updatedProgram);
-    setEbooks((prev) =>
-      prev.map((ebook) => ({
-        ...ebook,
-        program_name: updatedProgram.acronym,
-      })),
+  const handleUpdateProgram = async (updatedProgramData) => {
+    const result = await programService.updateProgram(
+      program.id,
+      updatedProgramData,
+      user?.id,
     );
-    toast.success("Program updated successfully!");
+
+    if (result.success) {
+      setProgram(result.program);
+      // Update program_name in eBooks
+      setEbooks((prev) =>
+        prev.map((ebook) => ({
+          ...ebook,
+          program_name: result.program.acronym,
+        })),
+      );
+      toast.success("Program updated successfully!");
+      setIsEditProgramModalOpen(false);
+    } else {
+      toast.error(result.error || "Failed to update program");
+    }
   };
 
   const handleDeleteProgramClick = () => {
@@ -403,15 +379,27 @@ const ProgramDetails = () => {
     setIsWarningModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
+    setDeleteLoading(true);
+
     if (deleteType === "program") {
-      toast.success("Program deleted successfully");
-      navigate("/programs");
+      const result = await programService.deleteProgram(program.id, user?.id);
+      if (result.success) {
+        toast.success("Program deleted successfully");
+        navigate("/programs");
+      } else {
+        toast.error(result.error || "Failed to delete program");
+        setIsWarningModalOpen(false);
+      }
     } else if (deleteType === "book") {
+      // Replace with actual book service when available
+      await new Promise((resolve) => setTimeout(resolve, 500));
       setBooks(books.filter((b) => b.id !== itemToDelete.id));
       toast.success("Book deleted successfully");
+      setIsWarningModalOpen(false);
     }
-    setIsWarningModalOpen(false);
+
+    setDeleteLoading(false);
     setItemToDelete(null);
     setDeleteType(null);
   };
@@ -452,7 +440,7 @@ const ProgramDetails = () => {
     setCurrentPage(page);
   };
 
-  // Action options for CustomSelect with icons
+  // Action options for CustomSelect
   const actionOptions = [
     {
       value: "edit",
@@ -473,6 +461,44 @@ const ProgramDetails = () => {
       handleDeleteProgramClick();
     }
   };
+
+  // Get warning modal content based on delete type
+  const getWarningContent = () => {
+    if (deleteType === "program") {
+      return {
+        title: "Delete Program",
+        message: `Are you sure you want to delete "${itemToDelete?.name}"? This action cannot be undone. ${itemToDelete?.total_books > 0 || itemToDelete?.total_ebooks > 0 ? "Note: This program has books and eBooks assigned." : ""}`,
+        confirmText: "Delete Program",
+        isDanger: true,
+      };
+    } else {
+      return {
+        title: "Delete Book",
+        message: `Are you sure you want to delete "${itemToDelete?.title}"? This action cannot be undone.`,
+        confirmText: "Delete Book",
+        isDanger: true,
+      };
+    }
+  };
+
+  const warningContent = getWarningContent();
+
+  // No results component
+  const NoResultsDisplay = ({ type }) => (
+    <div className="text-center py-12">
+      <img
+        src={noSearchFound}
+        alt="No results found"
+        className="w-64 h-64 mx-auto mb-4 object-contain"
+      />
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        No {type} Yet
+      </h3>
+      <p className="text-gray-600">
+        This program doesn't have any {type.toLowerCase()} associated yet.
+      </p>
+    </div>
+  );
 
   return (
     <div className="relative z-10 min-h-screen flex flex-col rounded-xl bg-white">
@@ -536,20 +562,23 @@ const ProgramDetails = () => {
               <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h1 className="text-3xl font-bold text-gray-900">
                         {program.name}
                       </h1>
-                      {/* Single small badge next to program name */}
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getProgramColor(program.acronym)}`}
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                        style={getProgramBadgeStyle(
+                          program.color,
+                          program.acronym,
+                        )}
                       >
                         {program.acronym}
                       </span>
                     </div>
                   </div>
 
-                  {/* Action Select Dropdown using CustomSelect */}
+                  {/* Action Select Dropdown */}
                   <div className="w-56">
                     <CustomSelect
                       options={actionOptions}
@@ -561,7 +590,7 @@ const ProgramDetails = () => {
                   </div>
                 </div>
 
-                {/* Program Stats - Using StatCard component */}
+                {/* Program Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-100">
                   <StatCard
                     title="Total eBooks"
@@ -578,7 +607,7 @@ const ProgramDetails = () => {
                 </div>
               </div>
 
-              {/* Tabs with Icons */}
+              {/* Tabs */}
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="border-b border-gray-200">
                   <div className="flex">
@@ -614,23 +643,11 @@ const ProgramDetails = () => {
                 </div>
 
                 <div className="p-6">
-                  {/* eBooks Tab - Using EbookCard component */}
+                  {/* eBooks Tab */}
                   {activeTab === "ebooks" && (
                     <>
                       {ebooks.length === 0 ? (
-                        <div className="text-center py-12">
-                          <div className="flex justify-center mb-4">
-                            <div className="p-3 bg-gray-50 rounded-full">
-                              <BookOpen className="w-12 h-12 text-gray-400" />
-                            </div>
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            No eBooks Yet
-                          </h3>
-                          <p className="text-gray-600">
-                            This program doesn't have any eBooks uploaded yet.
-                          </p>
-                        </div>
+                        <NoResultsDisplay type="eBooks" />
                       ) : (
                         <>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -639,14 +656,18 @@ const ProgramDetails = () => {
                                 key={ebook.id}
                                 ebook={ebook}
                                 onDownload={handleDownload}
-                                getProgramColor={getProgramColor}
+                                getProgramColor={() =>
+                                  getProgramBadgeStyle(
+                                    program.color,
+                                    program.acronym,
+                                  )
+                                }
                                 formatFileSize={formatFileSize}
                                 formatDownloads={formatDownloads}
                               />
                             ))}
                           </div>
 
-                          {/* Pagination for eBooks */}
                           {totalEbookPages > 1 && (
                             <div className="mt-6">
                               <Pagination
@@ -661,23 +682,11 @@ const ProgramDetails = () => {
                     </>
                   )}
 
-                  {/* Books Tab - Table with Actions */}
+                  {/* Books Tab */}
                   {activeTab === "books" && (
                     <>
                       {books.length === 0 ? (
-                        <div className="text-center py-12">
-                          <div className="flex justify-center mb-4">
-                            <div className="p-3 bg-gray-50 rounded-full">
-                              <BookOpen className="w-12 h-12 text-gray-400" />
-                            </div>
-                          </div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                            No Books Yet
-                          </h3>
-                          <p className="text-gray-600">
-                            This program doesn't have any books associated yet.
-                          </p>
-                        </div>
+                        <NoResultsDisplay type="Books" />
                       ) : (
                         <>
                           <div className="overflow-x-auto">
@@ -708,7 +717,7 @@ const ProgramDetails = () => {
                                     className="hover:bg-gray-50 transition-colors group"
                                   >
                                     <td
-                                      className="px-4 py-3 font-medium text-gray-900 cursor-pointer"
+                                      className="px-4 py-3 font-medium text-gray-900 cursor-pointer hover:text-blue-600"
                                       onClick={() =>
                                         navigate(`/books/${book.id}`, {
                                           state: { book },
@@ -718,7 +727,7 @@ const ProgramDetails = () => {
                                       {book.title}
                                     </td>
                                     <td
-                                      className="px-4 py-3 text-gray-600 cursor-pointer"
+                                      className="px-4 py-3 text-gray-600 cursor-pointer hover:text-blue-600"
                                       onClick={() =>
                                         navigate(`/books/${book.id}`, {
                                           state: { book },
@@ -728,7 +737,7 @@ const ProgramDetails = () => {
                                       {book.author}
                                     </td>
                                     <td
-                                      className="px-4 py-3 font-mono text-xs text-gray-600 cursor-pointer"
+                                      className="px-4 py-3 font-mono text-xs text-gray-600 cursor-pointer hover:text-blue-600"
                                       onClick={() =>
                                         navigate(`/books/${book.id}`, {
                                           state: { book },
@@ -739,7 +748,11 @@ const ProgramDetails = () => {
                                     </td>
                                     <td className="px-4 py-3">
                                       <span
-                                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getProgramColor(program.acronym)}`}
+                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+                                        style={getProgramBadgeStyle(
+                                          program.color,
+                                          program.acronym,
+                                        )}
                                       >
                                         {program.acronym}
                                       </span>
@@ -759,7 +772,6 @@ const ProgramDetails = () => {
                                         <MoreVertical className="w-5 h-5 text-gray-500" />
                                       </button>
 
-                                      {/* Dropdown Menu */}
                                       {openActionMenu === book.id && (
                                         <div className="absolute right-4 mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
                                           <button
@@ -791,7 +803,6 @@ const ProgramDetails = () => {
                             </table>
                           </div>
 
-                          {/* Pagination for Books */}
                           {totalBookPages > 1 && (
                             <div className="mt-6">
                               <Pagination
@@ -834,7 +845,12 @@ const ProgramDetails = () => {
         isOpen={isWarningModalOpen}
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
-        bookTitle={itemToDelete?.title || itemToDelete?.name}
+        title={warningContent.title}
+        message={warningContent.message}
+        confirmText={warningContent.confirmText}
+        cancelText="Cancel"
+        isDanger={warningContent.isDanger}
+        isLoading={deleteLoading}
       />
     </div>
   );

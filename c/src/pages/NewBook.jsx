@@ -1,9 +1,17 @@
 // src/pages/NewBook.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, User, BookMarked, Save, X } from "lucide-react";
+import {
+  ArrowLeft,
+  User,
+  BookOpen,
+  BookMarked,
+  Save,
+  X,
+  MapPin,
+} from "lucide-react";
 import toast from "react-hot-toast";
-import Select from "../components/Select";
+import Select from "@/components/Select";
 
 const NewBook = () => {
   const navigate = useNavigate();
@@ -13,6 +21,7 @@ const NewBook = () => {
     author: "",
     call_number: "",
     program: "BSIT",
+    shelf_location: "", // New field
   });
 
   const [loading, setLoading] = useState(false);
@@ -25,6 +34,20 @@ const NewBook = () => {
     "BSED",
     "BEED",
     "GEN ED",
+  ];
+
+  // Shelf location options
+  const shelfLocationOptions = [
+    "Aisle 1 - Left",
+    "Aisle 1 - Right",
+    "Aisle 2 - Left",
+    "Aisle 2 - Right",
+    "Aisle 3 - Left",
+    "Aisle 3 - Right",
+    "Reference Section",
+    "Reserve Section",
+    "Periodical Section",
+    "Multimedia Section",
   ];
 
   const handleChange = (e) => {
@@ -42,6 +65,13 @@ const NewBook = () => {
     }));
   };
 
+  const handleShelfLocationChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      shelf_location: value,
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -50,7 +80,8 @@ const NewBook = () => {
       !formData.title ||
       !formData.author ||
       !formData.call_number ||
-      !formData.program
+      !formData.program ||
+      !formData.shelf_location
     ) {
       toast.error("Please fill in all required fields");
       return;
@@ -110,7 +141,6 @@ const NewBook = () => {
             {/* Book Details Section */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-blue-600" />
                 Book Information
               </h2>
 
@@ -180,6 +210,17 @@ const NewBook = () => {
                   onChange={handleProgramChange}
                   placeholder="Select a program"
                   required={true}
+                />
+
+                {/* Shelf Location - New Field */}
+                <Select
+                  label="Shelf Location"
+                  options={shelfLocationOptions}
+                  value={formData.shelf_location}
+                  onChange={handleShelfLocationChange}
+                  placeholder="Select shelf location"
+                  required={true}
+                  icon={<MapPin className="w-5 h-5 text-gray-400" />}
                 />
               </div>
             </div>

@@ -101,7 +101,7 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
   };
 
   return (
-    <nav className="bg-[#F5F5F5] fixed top-0 left-0 right-0 z-50 border-b border-gray-200">
+    <nav className="bg-[#F5F5F5] fixed top-0 left-0 right-0 z-50">
       <div className="px-4">
         <div className="flex items-center justify-between h-16">
           {/* Left section - Logo and menu toggle */}

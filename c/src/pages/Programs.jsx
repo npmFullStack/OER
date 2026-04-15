@@ -1,68 +1,11 @@
-// src/pages/Programs.jsx
+// src/pages/Programs.jsx (Updated to use real service)
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { GraduationCap, Plus, Search, BookOpen } from "lucide-react";
 import toast from "react-hot-toast";
 import Pagination from "../components/Pagination";
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const INITIAL_PROGRAMS = [
-  {
-    id: 1,
-    name: "Bachelor of Science in Information Technology",
-    acronym: "BSIT",
-    color: "#3b82f6",
-    total_books: 12,
-    total_ebooks: 8,
-    created_at: "2023-01-15",
-  },
-  {
-    id: 2,
-    name: "Bachelor of Science in Computer Science",
-    acronym: "BSCS",
-    color: "#10b981",
-    total_books: 9,
-    total_ebooks: 6,
-    created_at: "2023-02-20",
-  },
-  {
-    id: 3,
-    name: "Bachelor of Science in Computer Engineering",
-    acronym: "BSCpE",
-    color: "#f59e0b",
-    total_books: 7,
-    total_ebooks: 4,
-    created_at: "2023-03-10",
-  },
-  {
-    id: 4,
-    name: "Bachelor of Science in Electronics Engineering",
-    acronym: "BSECE",
-    color: "#8b5cf6",
-    total_books: 5,
-    total_ebooks: 3,
-    created_at: "2023-04-05",
-  },
-  {
-    id: 5,
-    name: "Bachelor of Science in Electrical Engineering",
-    acronym: "BSEE",
-    color: "#ef4444",
-    total_books: 4,
-    total_ebooks: 2,
-    created_at: "2023-05-12",
-  },
-  {
-    id: 6,
-    name: "Bachelor of Science in Mechanical Engineering",
-    acronym: "BSME",
-    color: "#06b6d4",
-    total_books: 3,
-    total_ebooks: 1,
-    created_at: "2023-06-18",
-  },
-];
-// ─────────────────────────────────────────────────────────────────────────────
+import programService from "@/services/program.service";
+import { useAuth } from "@/context/AuthContext";
 
 const hexToLightBg = (hex) => {
   try {
@@ -124,6 +67,7 @@ const ProgramCard = ({ program, onEdit, onDelete }) => {
 
 const Programs = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
@@ -131,13 +75,33 @@ const Programs = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate async fetch
-    const timer = setTimeout(() => {
-      setPrograms(INITIAL_PROGRAMS);
-      setLoading(false);
-    }, 400);
-    return () => clearTimeout(timer);
+    fetchPrograms();
   }, []);
+
+  const fetchPrograms = async () => {
+    setLoading(true);
+    const result = await programService.getAllPrograms();
+    if (result.programs) {
+      setPrograms(result.programs);
+    } else if (result.error) {
+      toast.error(result.error);
+    }
+    setLoading(false);
+  };
+
+  const handleDelete = async (id, programName) => {
+    if (!window.confirm(`Are you sure you want to delete "${programName}"?`)) {
+      return;
+    }
+
+    const result = await programService.deleteProgram(id, user?.id);
+    if (result.success) {
+      toast.success("Program deleted successfully");
+      await fetchPrograms();
+    } else {
+      toast.error(result.error || "Failed to delete program");
+    }
+  };
 
   const filteredPrograms = programs.filter(
     (program) =>
@@ -152,18 +116,6 @@ const Programs = () => {
     indexOfLastItem,
   );
   const totalPages = Math.ceil(filteredPrograms.length / itemsPerPage);
-
-  const handleEdit = (id) => {
-    navigate(`/programs/edit/${id}`);
-  };
-
-  const handleDelete = (id, programName) => {
-    if (!window.confirm(`Are you sure you want to delete "${programName}"?`)) {
-      return;
-    }
-    setPrograms((prev) => prev.filter((p) => p.id !== id));
-    toast.success("Program deleted successfully");
-  };
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -249,7 +201,6 @@ const Programs = () => {
               <ProgramCard
                 key={program.id}
                 program={program}
-                onEdit={handleEdit}
                 onDelete={handleDelete}
               />
             ))}

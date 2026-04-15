@@ -1,6 +1,6 @@
 // src/components/modals/EditBookModal.jsx
 import React, { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, MapPin } from "lucide-react";
 import ModalPortal from "./ModalPortal";
 import Select from "../Select"; // Adjust path as needed
 
@@ -11,6 +11,7 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
     author: "",
     call_number: "",
     program: "",
+    shelf_location: "", // New field
   });
 
   const programOptions = [
@@ -22,6 +23,20 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
     "GEN ED",
   ];
 
+  // Shelf location options
+  const shelfLocationOptions = [
+    "Aisle 1 - Left",
+    "Aisle 1 - Right",
+    "Aisle 2 - Left",
+    "Aisle 2 - Right",
+    "Aisle 3 - Left",
+    "Aisle 3 - Right",
+    "Reference Section",
+    "Reserve Section",
+    "Periodical Section",
+    "Multimedia Section",
+  ];
+
   useEffect(() => {
     if (book) {
       setFormData({
@@ -30,6 +45,7 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
         author: book.author,
         call_number: book.call_number,
         program: book.program,
+        shelf_location: book.shelf_location || "",
       });
     }
   }, [book]);
@@ -46,6 +62,13 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
     setFormData((prev) => ({
       ...prev,
       program: value,
+    }));
+  };
+
+  const handleShelfLocationChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      shelf_location: value,
     }));
   };
 
@@ -132,6 +155,19 @@ const EditBookModal = ({ isOpen, onClose, book, onUpdate }) => {
                 placeholder="Select a program"
                 isClearable={false}
                 required={true}
+              />
+            </div>
+
+            <div>
+              <Select
+                label="Shelf Location *"
+                options={shelfLocationOptions}
+                value={formData.shelf_location}
+                onChange={handleShelfLocationChange}
+                placeholder="Select shelf location"
+                isClearable={false}
+                required={true}
+                icon={<MapPin className="w-5 h-5 text-gray-400" />}
               />
             </div>
 

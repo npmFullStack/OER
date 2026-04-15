@@ -1,4 +1,4 @@
-// src/components/modals/EditProgramModal.jsx
+// src/components/modals/EditProgramModal.jsx (Updated to use real service)
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
@@ -13,6 +13,7 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
   });
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const colorOptions = [
     { value: "#3b82f6", label: "Blue" },
@@ -40,24 +41,61 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error for this field when user starts typing
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Program name is required";
+    } else if (formData.name.trim().length < 3) {
+      newErrors.name = "Program name must be at least 3 characters";
+    }
+
+    if (!formData.acronym.trim()) {
+      newErrors.acronym = "Program acronym is required";
+    } else if (formData.acronym.trim().length < 2) {
+      newErrors.acronym = "Acronym must be at least 2 characters";
+    } else if (formData.acronym.trim().length > 10) {
+      newErrors.acronym = "Acronym cannot exceed 10 characters";
+    }
+
+    if (!formData.color) {
+      newErrors.color = "Color is required";
+    } else if (!/^#[0-9A-Fa-f]{6}$/.test(formData.color)) {
+      newErrors.color = "Invalid color format";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    onUpdate({
-      ...program,
-      ...formData,
-    });
-
-    toast.success("Program updated successfully!");
-    setLoading(false);
-    onClose();
+    try {
+      // Call the onUpdate prop which handles the API call
+      await onUpdate(formData);
+      // Modal will be closed by the parent component after successful update
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error("Failed to update program");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (!isOpen) return null;
 
   return (
     <ModalPortal isOpen={isOpen}>
@@ -78,6 +116,7 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
             <button
               onClick={onClose}
               className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Close"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -85,9 +124,10 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
+            {/* Program Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Program Name *
+                Program Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -95,14 +135,20 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.name ? "border-red-500" : "border-gray-300"
+                }`}
                 placeholder="e.g., Bachelor of Science in Information Technology"
               />
+              {errors.name && (
+                <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+              )}
             </div>
 
+            {/* Acronym */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Acronym *
+                Acronym <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -111,14 +157,23 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
                 onChange={handleChange}
                 required
                 maxLength={10}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase ${
+                  errors.acronym ? "border-red-500" : "border-gray-300"
+                }`}
                 placeholder="e.g., BSIT"
               />
+              {errors.acronym && (
+                <p className="mt-1 text-xs text-red-500">{errors.acronym}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Max 10 characters, will be automatically capitalized
+              </p>
             </div>
 
+            {/* Color Picker */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Program Color
+                Program Color <span className="text-red-500">*</span>
               </label>
 
               {/* Predefined color options */}
@@ -132,6 +187,9 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
                       onClick={() => {
                         setFormData({ ...formData, color: color.value });
                         setShowColorPicker(false);
+                        if (errors.color) {
+                          setErrors((prev) => ({ ...prev, color: "" }));
+                        }
                       }}
                       className={`w-8 h-8 rounded-full border-2 transition-all ${
                         formData.color === color.value
@@ -152,7 +210,9 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
                   <button
                     type="button"
                     onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="flex items-center gap-3 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    className={`flex items-center gap-3 px-3 py-2 border rounded-lg hover:bg-gray-50 ${
+                      errors.color ? "border-red-500" : "border-gray-300"
+                    }`}
                   >
                     <div
                       className="w-6 h-6 rounded-full"
@@ -162,15 +222,35 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
                       {formData.color}
                     </span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, color: "#3b82f6" });
+                      if (errors.color) {
+                        setErrors((prev) => ({ ...prev, color: "" }));
+                      }
+                    }}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    Reset to default
+                  </button>
                 </div>
 
                 {showColorPicker && (
                   <div className="mt-4 p-4 border border-gray-200 rounded-lg bg-white shadow-lg">
                     <HexColorPicker
                       color={formData.color}
-                      onChange={(color) => setFormData({ ...formData, color })}
+                      onChange={(color) => {
+                        setFormData({ ...formData, color });
+                        if (errors.color) {
+                          setErrors((prev) => ({ ...prev, color: "" }));
+                        }
+                      }}
                     />
                   </div>
+                )}
+                {errors.color && (
+                  <p className="mt-1 text-xs text-red-500">{errors.color}</p>
                 )}
               </div>
             </div>
@@ -200,16 +280,24 @@ const EditProgramModal = ({ isOpen, onClose, program, onUpdate }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={loading}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {loading ? "Saving..." : "Save Changes"}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
               </button>
             </div>
           </form>

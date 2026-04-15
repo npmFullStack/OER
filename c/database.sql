@@ -1,6 +1,6 @@
 -- ============================================
 -- COMPLETE DATABASE SETUP FOR OCC eLIBRARY
--- WITH EMAIL NOTIFICATIONS
+-- WITH EMAIL NOTIFICATIONS AND PROGRAMS
 -- ============================================
 
 -- Enable required extensions
@@ -12,6 +12,8 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================
 DROP TABLE IF EXISTS public.activity_logs CASCADE;
 DROP TABLE IF EXISTS public.user_sessions CASCADE;
+DROP TABLE IF EXISTS public.pending_invites CASCADE;
+DROP TABLE IF EXISTS public.programs CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
 -- ============================================
@@ -28,6 +30,23 @@ CREATE TABLE public.users (
     last_login TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================
+-- CREATE PROGRAMS TABLE
+-- ============================================
+CREATE TABLE public.programs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    acronym VARCHAR(10) NOT NULL UNIQUE,
+    color VARCHAR(7) DEFAULT '#3b82f6', -- Hex color code
+    total_books INTEGER DEFAULT 0,
+    total_ebooks INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL
 );
 
 -- ============================================
@@ -82,6 +101,9 @@ CREATE INDEX idx_activity_logs_user_id ON public.activity_logs(user_id);
 CREATE INDEX idx_activity_logs_created_at ON public.activity_logs(created_at);
 CREATE INDEX idx_pending_invites_email ON public.pending_invites(email);
 CREATE INDEX idx_pending_invites_token ON public.pending_invites(token);
+CREATE INDEX idx_programs_name ON public.programs(name);
+CREATE INDEX idx_programs_acronym ON public.programs(acronym);
+CREATE INDEX idx_programs_is_active ON public.programs(is_active);
 
 -- ============================================
 -- CREATE FUNCTION FOR UPDATED_AT TIMESTAMP
@@ -99,6 +121,14 @@ $$ language 'plpgsql';
 -- ============================================
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON public.users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- CREATE TRIGGER FOR PROGRAMS
+-- ============================================
+CREATE TRIGGER update_programs_updated_at
+    BEFORE UPDATE ON public.programs
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -260,12 +290,18 @@ BEGIN
     END IF;
 END $$;
 
+
+
 -- ============================================
 -- VERIFY SEEDER
 -- ============================================
 SELECT id, firstname, lastname, email, role, is_active, created_at 
 FROM public.users 
 WHERE email = 'admin@occ.edu';
+
+SELECT id, name, acronym, color, total_books, total_ebooks, is_active 
+FROM public.programs 
+ORDER BY created_at;
 
 -- ============================================
 -- DISABLE RLS TEMPORARILY FOR DEVELOPMENT
@@ -274,6 +310,7 @@ ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pending_invites DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.programs DISABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- SUCCESS MESSAGE
@@ -286,7 +323,5 @@ BEGIN
     RAISE NOTICE 'Superadmin credentials:';
     RAISE NOTICE 'Email: admin@occ.edu';
     RAISE NOTICE 'Password: password';
-    RAISE NOTICE '==========================================';
-    RAISE NOTICE 'Email notifications will be sent via API';
     RAISE NOTICE '==========================================';
 END $$;
