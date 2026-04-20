@@ -13,7 +13,7 @@ const Header = () => {
 
   const navLinks = [
     { name: "Home", path: "/", icon: Home },
-    { name: "All eBooks", path: "/browse", icon: Compass },
+    { name: "All Resources", path: "/browse", icon: Compass },
     { name: "About", path: "/about", icon: Info },
   ];
 
