@@ -56,11 +56,11 @@ const EbookCard = ({
         </div>
 
         {/* Program Badge - Like in Home.jsx featured items */}
-        {ebook.program_name && (
+        {ebook.program_acronym && (
           <span
-            className={`absolute top-2 left-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getProgramColor(ebook.program_name)}`}
+            className={`absolute top-2 left-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${getProgramColor(ebook.program_acronym)}`}
           >
-            {ebook.program_name}
+            {ebook.program_acronym}
           </span>
         )}
 

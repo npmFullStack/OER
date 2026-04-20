@@ -267,6 +267,7 @@ const Home = () => {
       title: "Introduction to Computing",
       author: "Dr. Maria Santos",
       program_name: "BSIT",
+      program_acronym: "BSIT",
       type: "ebook",
       cover_url:
         "https://via.placeholder.com/200x280/0e326c/ffffff?text=Computing",
@@ -280,6 +281,7 @@ const Home = () => {
       title: "Financial Management Basics",
       author: "Prof. Juan Dela Cruz",
       program_name: "BSBA-FM",
+      program_acronym: "BSBA-FM",
       type: "ebook",
       cover_url:
         "https://via.placeholder.com/200x280/6B9AC4/ffffff?text=Finance",
@@ -293,6 +295,7 @@ const Home = () => {
       title: "Modern Marketing Strategies",
       author: "Ana Reyes",
       program_name: "BSBA-MM",
+      program_acronym: "BSBA-MM",
       type: "ebook",
       cover_url:
         "https://via.placeholder.com/200x280/0e326c/ffffff?text=Marketing",
@@ -306,6 +309,7 @@ const Home = () => {
       title: "Elementary Education Methods",
       author: "Dr. Luz Mercado",
       program_name: "BEED",
+      program_acronym: "BEED",
       type: "ebook",
       cover_url:
         "https://via.placeholder.com/200x280/6B9AC4/ffffff?text=Education",

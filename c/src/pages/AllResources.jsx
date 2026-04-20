@@ -36,6 +36,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "John Smith",
+    file_name: "intro-to-cs.pdf",
   },
   {
     id: 2,
@@ -52,6 +53,7 @@ const MOCK_EBOOKS = [
     file_size: 3670016,
     file_url: "#",
     author: "Sarah Johnson",
+    file_name: "advanced-js.pdf",
   },
   {
     id: 3,
@@ -68,6 +70,7 @@ const MOCK_EBOOKS = [
     file_size: 4194304,
     file_url: "#",
     author: "Michael Chen",
+    file_name: "ds-algorithms.pdf",
   },
   {
     id: 4,
@@ -84,6 +87,7 @@ const MOCK_EBOOKS = [
     file_size: 2883584,
     file_url: "#",
     author: "Emily Rodriguez",
+    file_name: "digital-logic.pdf",
   },
   {
     id: 5,
@@ -100,6 +104,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "David Kim",
+    file_name: "network-security.pdf",
   },
   {
     id: 6,
@@ -116,6 +121,7 @@ const MOCK_EBOOKS = [
     file_size: 3670016,
     file_url: "#",
     author: "Lisa Wang",
+    file_name: "dbms.pdf",
   },
   {
     id: 7,
@@ -132,6 +138,7 @@ const MOCK_EBOOKS = [
     file_size: 4194304,
     file_url: "#",
     author: "Robert Taylor",
+    file_name: "software-eng.pdf",
   },
   {
     id: 8,
@@ -148,6 +155,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "Sarah Miller",
+    file_name: "web-dev.pdf",
   },
   {
     id: 9,
@@ -164,6 +172,7 @@ const MOCK_EBOOKS = [
     file_size: 2883584,
     file_url: "#",
     author: "James Wilson",
+    file_name: "comp-arch.pdf",
   },
   {
     id: 10,
@@ -180,6 +189,7 @@ const MOCK_EBOOKS = [
     file_size: 4194304,
     file_url: "#",
     author: "Anna Martinez",
+    file_name: "ai-basics.pdf",
   },
   {
     id: 11,
@@ -196,6 +206,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "Chris Anderson",
+    file_name: "mobile-dev.pdf",
   },
   {
     id: 12,
@@ -212,6 +223,7 @@ const MOCK_EBOOKS = [
     file_size: 3670016,
     file_url: "#",
     author: "Patricia Lee",
+    file_name: "embedded-sys.pdf",
   },
   // Adding eBooks for other programs
   {
@@ -229,6 +241,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "Maria Santos",
+    file_name: "financial-mgmt.pdf",
   },
   {
     id: 14,
@@ -245,6 +258,7 @@ const MOCK_EBOOKS = [
     file_size: 4194304,
     file_url: "#",
     author: "Carlos Reyes",
+    file_name: "marketing-strategies.pdf",
   },
   {
     id: 15,
@@ -261,6 +275,7 @@ const MOCK_EBOOKS = [
     file_size: 3670016,
     file_url: "#",
     author: "Luz Mercado",
+    file_name: "edu-psych.pdf",
   },
   {
     id: 16,
@@ -277,6 +292,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "Ana Castillo",
+    file_name: "early-childhood.pdf",
   },
   {
     id: 17,
@@ -293,6 +309,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "Jose Rizal",
+    file_name: "world-history.pdf",
   },
   {
     id: 18,
@@ -309,6 +326,7 @@ const MOCK_EBOOKS = [
     file_size: 3670016,
     file_url: "#",
     author: "Elena Gomez",
+    file_name: "corp-finance.pdf",
   },
   {
     id: 19,
@@ -325,6 +343,7 @@ const MOCK_EBOOKS = [
     file_size: 4194304,
     file_url: "#",
     author: "Mark Lopez",
+    file_name: "consumer-behavior.pdf",
   },
   {
     id: 20,
@@ -341,6 +360,7 @@ const MOCK_EBOOKS = [
     file_size: 5242880,
     file_url: "#",
     author: "Fe Santos",
+    file_name: "teaching-strategies.pdf",
   },
 ];
 
@@ -458,7 +478,7 @@ const sortOptions = [
   { value: "title-desc", label: "Title Z–A" },
 ];
 
-// Updated program color badges to match Home page
+// Program color badge matching Home.jsx
 const getProgramColorBadge = (program) => {
   const colors = {
     BSIT: "bg-red-100 text-red-700",
@@ -517,7 +537,6 @@ const AllResources = () => {
   const [showEbookFilters, setShowEbookFilters] = useState(false);
   const [ebookSearch, setEbookSearch] = useState("");
   const [selectedEbookProgram, setSelectedEbookProgram] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
   const [selectedSort, setSelectedSort] = useState("newest");
   const [ebookPage, setEbookPage] = useState(1);
   const EBOOK_PER_PAGE = 12;
@@ -566,9 +585,6 @@ const AllResources = () => {
         (b) => String(b.program_acronym) === selectedEbookProgram,
       );
     }
-    if (selectedYear) {
-      filtered = filtered.filter((b) => String(b.year_level) === selectedYear);
-    }
     filtered.sort((a, b) => {
       switch (selectedSort) {
         case "newest":
@@ -589,7 +605,7 @@ const AllResources = () => {
     });
     setFilteredEbooks(filtered);
     setEbookPage(1);
-  }, [ebooks, ebookSearch, selectedEbookProgram, selectedYear, selectedSort]);
+  }, [ebooks, ebookSearch, selectedEbookProgram, selectedSort]);
 
   // ── Book filters ──
   useEffect(() => {
@@ -643,7 +659,6 @@ const AllResources = () => {
   const clearEbookFilters = () => {
     setEbookSearch("");
     setSelectedEbookProgram("");
-    setSelectedYear("");
     setSelectedSort("newest");
   };
 
@@ -652,11 +667,9 @@ const AllResources = () => {
     setSelectedBookProgram("");
   };
 
-  const ebookActiveFilters = [
-    ebookSearch,
-    selectedEbookProgram,
-    selectedYear,
-  ].filter(Boolean).length;
+  const ebookActiveFilters = [ebookSearch, selectedEbookProgram].filter(
+    Boolean,
+  ).length;
   const bookActiveFilters = [bookSearch, selectedBookProgram].filter(
     Boolean,
   ).length;
@@ -664,6 +677,7 @@ const AllResources = () => {
   // Handle download function for EbookCard
   const handleDownload = (id, title, fileName) => {
     console.log(`Downloading ${title}...`);
+    toast.success(`Downloading ${title}...`);
   };
 
   return (
@@ -737,7 +751,7 @@ const AllResources = () => {
       {activeTab === "ebooks" && (
         <section className="py-8">
           <div className="container mx-auto px-4">
-            {/* Search + Filter bar - removed view toggle */}
+            {/* Search + Filter bar */}
             <div className="flex flex-col md:flex-row gap-3 mb-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -779,7 +793,7 @@ const AllResources = () => {
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">
                       Program
@@ -793,23 +807,6 @@ const AllResources = () => {
                       {uniqueEbookPrograms.map((p) => (
                         <option key={p} value={p}>
                           {p}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      Year Level
-                    </label>
-                    <select
-                      value={selectedYear}
-                      onChange={(e) => setSelectedYear(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                    >
-                      <option value="">All Years</option>
-                      {yearOptions.map((y) => (
-                        <option key={y.value} value={y.value}>
-                          {y.label}
                         </option>
                       ))}
                     </select>
@@ -893,14 +890,14 @@ const AllResources = () => {
               </div>
             )}
 
-            {/* Grid view only - using EbookCard component */}
+            {/* Grid view with EbookCard component - matching Home.jsx style */}
             {!ebookLoading && filteredEbooks.length > 0 && (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {currentEbooks.map((book) => (
-                    <div key={book.id} style={{ cursor: "default" }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+                  {currentEbooks.map((ebook) => (
+                    <div key={ebook.id} style={{ cursor: "default" }}>
                       <EbookCard
-                        ebook={book}
+                        ebook={ebook}
                         onDownload={handleDownload}
                         getProgramColor={getProgramColorBadge}
                         formatFileSize={formatFileSize}
@@ -1084,12 +1081,12 @@ const AllResources = () => {
               </div>
             )}
 
-            {/* Books list */}
+            {/* Books list with program badges matching Home.jsx */}
             {!bookLoading && filteredBooks.length > 0 && (
               <>
                 <div className="space-y-3">
                   {currentBooks.map((book) => {
-                    const programColorClass = getProgramColor(book.program);
+                    const programBadgeClass = getProgramColor(book.program);
                     return (
                       <div
                         key={book.id}
@@ -1100,7 +1097,7 @@ const AllResources = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2 mb-2">
                                 <span
-                                  className={`${programColorClass} text-xs font-semibold px-2 py-0.5 rounded-full`}
+                                  className={`${programBadgeClass} text-xs font-semibold px-2 py-0.5 rounded-full`}
                                 >
                                   {book.program}
                                 </span>
