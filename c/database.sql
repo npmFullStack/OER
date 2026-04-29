@@ -1,6 +1,7 @@
 -- ============================================
 -- COMPLETE DATABASE SETUP FOR OCC eLIBRARY
 -- WITH EMAIL NOTIFICATIONS AND PROGRAMS
+-- AND STUDENT RESEARCH MANAGEMENT
 -- ============================================
 
 -- Enable required extensions
@@ -13,11 +14,13 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 DROP TABLE IF EXISTS public.activity_logs CASCADE;
 DROP TABLE IF EXISTS public.user_sessions CASCADE;
 DROP TABLE IF EXISTS public.pending_invites CASCADE;
+DROP TABLE IF EXISTS public.student_research CASCADE;
+DROP TABLE IF EXISTS public.student_research_category CASCADE;
 DROP TABLE IF EXISTS public.programs CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
 -- ============================================
--- CREATE USERS TABLE (Updated to match component)
+-- CREATE USERS TABLE
 -- ============================================
 CREATE TABLE public.users (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -33,13 +36,54 @@ CREATE TABLE public.users (
 );
 
 -- ============================================
+-- CREATE STUDENT RESEARCH CATEGORY TABLE
+-- ============================================
+CREATE TABLE public.student_research_category (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    color VARCHAR(7) DEFAULT '#3b82f6',
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL
+);
+
+-- ============================================
+-- CREATE STUDENT RESEARCH TABLE
+-- ============================================
+CREATE TABLE public.student_research (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    title VARCHAR(500) NOT NULL,
+    authors TEXT[] NOT NULL DEFAULT '{}',
+    category_id UUID NOT NULL REFERENCES public.student_research_category(id) ON DELETE RESTRICT,
+    year INTEGER NOT NULL,
+    file_url TEXT,
+    file_name VARCHAR(255),
+    file_size VARCHAR(50),
+    file_storage_path TEXT,
+    views INTEGER DEFAULT 0,
+    downloads INTEGER DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived')),
+    is_featured BOOLEAN DEFAULT false,
+    cover_url TEXT,
+    abstract TEXT,
+    keywords TEXT[] DEFAULT '{}',
+    uploaded_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ============================================
 -- CREATE PROGRAMS TABLE
 -- ============================================
 CREATE TABLE public.programs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     acronym VARCHAR(10) NOT NULL UNIQUE,
-    color VARCHAR(7) DEFAULT '#3b82f6', -- Hex color code
+    color VARCHAR(7) DEFAULT '#3b82f6',
     total_books INTEGER DEFAULT 0,
     total_ebooks INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
@@ -105,6 +149,17 @@ CREATE INDEX idx_programs_name ON public.programs(name);
 CREATE INDEX idx_programs_acronym ON public.programs(acronym);
 CREATE INDEX idx_programs_is_active ON public.programs(is_active);
 
+-- Indexes for student research
+CREATE INDEX idx_student_research_title ON public.student_research(title);
+CREATE INDEX idx_student_research_category_id ON public.student_research(category_id);
+CREATE INDEX idx_student_research_year ON public.student_research(year);
+CREATE INDEX idx_student_research_status ON public.student_research(status);
+CREATE INDEX idx_student_research_created_at ON public.student_research(created_at);
+CREATE INDEX idx_student_research_views ON public.student_research(views);
+CREATE INDEX idx_student_research_downloads ON public.student_research(downloads);
+CREATE INDEX idx_student_research_category_name ON public.student_research_category(name);
+CREATE INDEX idx_student_research_category_is_active ON public.student_research_category(is_active);
+
 -- ============================================
 -- CREATE FUNCTION FOR UPDATED_AT TIMESTAMP
 -- ============================================
@@ -117,18 +172,25 @@ END;
 $$ language 'plpgsql';
 
 -- ============================================
--- CREATE TRIGGER FOR USERS
+-- CREATE TRIGGERS
 -- ============================================
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON public.users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- ============================================
--- CREATE TRIGGER FOR PROGRAMS
--- ============================================
 CREATE TRIGGER update_programs_updated_at
     BEFORE UPDATE ON public.programs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_student_research_updated_at
+    BEFORE UPDATE ON public.student_research
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_student_research_category_updated_at
+    BEFORE UPDATE ON public.student_research_category
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -261,15 +323,53 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
--- SEEDER: INSERT SUPERADMIN USER
+-- FUNCTIONS FOR INCREMENTING RESEARCH COUNTERS
+-- ============================================
+
+CREATE OR REPLACE FUNCTION increment_research_views(research_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE public.student_research
+    SET views = COALESCE(views, 0) + 1
+    WHERE id = research_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION increment_research_downloads(research_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE public.student_research
+    SET downloads = COALESCE(downloads, 0) + 1
+    WHERE id = research_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
+-- SEEDER: INSERT DEFAULT CATEGORIES
+-- ============================================
+INSERT INTO public.student_research_category (name, description, color, display_order) VALUES
+('CAPSTONE', 'Capstone projects integrating multiple disciplines', '#dc2626', 1),
+('BUSINESS RESEARCH', 'Research focused on business and management', '#10b981', 2),
+('FEASIBILITY STUDY', 'Studies analyzing project viability', '#eab308', 3),
+('ACTION RESEARCH', 'Research aimed at solving practical problems', '#3b82f6', 4),
+('EXPERIMENTAL THESIS', 'Thesis involving experimental methodologies', '#8b5cf6', 5)
+ON CONFLICT (name) DO NOTHING;
+
+-- ============================================
+-- SEEDER: INSERT SUPERADMIN USER (FIXED)
 -- ============================================
 DO $$
+DECLARE
+    hashed_pw TEXT;
 BEGIN
+    -- Manually hash the password using pgcrypto
+    hashed_pw := crypt('password', gen_salt('bf'));
+    
     IF EXISTS (SELECT 1 FROM public.users WHERE email = 'admin@occ.edu') THEN
-        -- Update existing superadmin
+        -- Update existing superadmin with properly hashed password
         UPDATE public.users 
         SET 
-            password_hash = crypt('password', gen_salt('bf')),
+            password_hash = hashed_pw,
             firstname = 'OCCLIB',
             lastname = 'ADMIN',
             role = 'superadmin',
@@ -277,31 +377,44 @@ BEGIN
             updated_at = NOW()
         WHERE email = 'admin@occ.edu';
     ELSE
-        -- Insert new superadmin
+        -- Insert new superadmin with properly hashed password
         INSERT INTO public.users (firstname, lastname, email, password_hash, role, is_active)
         VALUES (
             'OCCLIB',
             'ADMIN',
             'admin@occ.edu',
-            'password',
+            hashed_pw,
             'superadmin',
             true
         );
     END IF;
 END $$;
 
-
-
 -- ============================================
--- VERIFY SEEDER
+-- VERIFY SEEDER (Check if everything was created correctly)
 -- ============================================
-SELECT id, firstname, lastname, email, role, is_active, created_at 
+
+-- Check users table
+SELECT id, firstname, lastname, email, role, is_active, 
+       CASE WHEN password_hash LIKE '$2a$%' OR password_hash LIKE '$2b$%' 
+            THEN '✓ Properly hashed' 
+            ELSE '✗ Not properly hashed' 
+       END as password_status
 FROM public.users 
 WHERE email = 'admin@occ.edu';
 
+-- Check programs table
 SELECT id, name, acronym, color, total_books, total_ebooks, is_active 
 FROM public.programs 
 ORDER BY created_at;
+
+-- Check student research categories
+SELECT id, name, description, color, display_order, is_active
+FROM public.student_research_category
+ORDER BY display_order;
+
+-- Test password verification (should return true)
+SELECT verify_password('admin@occ.edu', 'password') as login_test_working;
 
 -- ============================================
 -- DISABLE RLS TEMPORARILY FOR DEVELOPMENT
@@ -311,6 +424,8 @@ ALTER TABLE public.user_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pending_invites DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.programs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.student_research DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.student_research_category DISABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- SUCCESS MESSAGE
@@ -321,7 +436,19 @@ BEGIN
     RAISE NOTICE 'DATABASE SETUP COMPLETE!';
     RAISE NOTICE '==========================================';
     RAISE NOTICE 'Superadmin credentials:';
-    RAISE NOTICE 'Email: admin@occ.edu';
-    RAISE NOTICE 'Password: password';
+    RAISE NOTICE '  Email: admin@occ.edu';
+    RAISE NOTICE '  Password: password';
+    RAISE NOTICE '==========================================';
+    RAISE NOTICE 'Student Research Categories Added:';
+    RAISE NOTICE '  - CAPSTONE';
+    RAISE NOTICE '  - BUSINESS RESEARCH';
+    RAISE NOTICE '  - FEASIBILITY STUDY';
+    RAISE NOTICE '  - ACTION RESEARCH';
+    RAISE NOTICE '  - EXPERIMENTAL THESIS';
+    RAISE NOTICE '==========================================';
+    RAISE NOTICE '';
+    RAISE NOTICE 'Next steps:';
+    RAISE NOTICE '1. Create a storage bucket called "research-files" in Supabase Storage';
+    RAISE NOTICE '2. Set the bucket to public or configure appropriate permissions';
     RAISE NOTICE '==========================================';
 END $$;

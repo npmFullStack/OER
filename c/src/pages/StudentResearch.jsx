@@ -14,11 +14,14 @@ import {
   Filter,
   ChevronDown,
   Layers,
+  Loader,
 } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import WarningModal from "@/components/modals/WarningModal";
 import Select from "@/components/Select";
 import NewStudentResearchCategory from "@/components/modals/NewStudentResearchCategory";
+import studentResearchService from "@/services/student-research.service";
+import toast from "react-hot-toast";
 
 // Options for items per page
 const ITEMS_PER_PAGE_OPTIONS = [
@@ -43,16 +46,46 @@ const StudentResearch = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [categories, setCategories] = useState([
-    "CAPSTONE",
-    "BUSINESS RESEARCH",
-    "FEASIBILITY STUDY",
-    "ACTION RESEARCH",
-    "EXPERIMENTAL THESIS",
-  ]);
+  const [categories, setCategories] = useState([]);
+  const [years, setYears] = useState([]);
+  const [downloading, setDownloading] = useState(null);
+
+  // Load data from backend
+  useEffect(() => {
+    loadResearch();
+    loadCategories();
+  }, []);
+
+  const loadResearch = async () => {
+    setLoading(true);
+    const { research: data, error } =
+      await studentResearchService.getResearchPapers();
+    if (error) {
+      toast.error("Failed to load research papers");
+      console.error(error);
+    } else {
+      setResearch(data || []);
+      setFilteredResearch(data || []);
+      // Extract unique years
+      const uniqueYears = [...new Set((data || []).map((r) => r.year))].sort(
+        (a, b) => b - a,
+      );
+      setYears(uniqueYears);
+    }
+    setLoading(false);
+  };
+
+  const loadCategories = async () => {
+    const { categories: data, error } =
+      await studentResearchService.getCategories();
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   // Get category color
   const getCategoryColor = (category) => {
+    if (!category) return "bg-gray-100 text-gray-700";
     const colors = {
       CAPSTONE: "bg-red-100 text-red-700",
       "BUSINESS RESEARCH": "bg-green-100 text-green-700",
@@ -60,7 +93,7 @@ const StudentResearch = () => {
       "ACTION RESEARCH": "bg-blue-100 text-blue-700",
       "EXPERIMENTAL THESIS": "bg-purple-100 text-purple-700",
     };
-    return colors[category] || "bg-gray-100 text-gray-700";
+    return colors[category.name] || "bg-gray-100 text-gray-700";
   };
 
   const formatNumber = (n) => {
@@ -68,118 +101,6 @@ const StudentResearch = () => {
     if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
     return String(n);
   };
-
-  const formatFileSize = (size) => {
-    if (!size) return "Unknown size";
-    return size;
-  };
-
-  // Mock student research data with file_url
-  const MOCK_RESEARCH = [
-    {
-      id: 1,
-      title: "E-Learning Platform Usability Study for Remote Education",
-      authors: ["Madayag, J.", "Mangorangka, R.", "Abieza, M.", "Mendiola, C."],
-      category: "CAPSTONE",
-      year: 2024,
-      downloads: 234,
-      views: 567,
-      file_url: "/sample-research-1.pdf",
-      file_name: "elearning_usability_study.pdf",
-      file_size: "2.4 MB",
-      uploadedBy: "John Doe",
-      uploadedAt: "2024-01-15",
-      cover_url: "/covers/research1.jpg",
-    },
-    {
-      id: 2,
-      title: "Mobile Application for Campus Navigation and Facility Locator",
-      authors: ["Santos, M.", "Reyes, J.", "Gonzales, A.", "Cruz, P."],
-      category: "CAPSTONE",
-      year: 2024,
-      downloads: 189,
-      views: 423,
-      file_url: "/sample-research-2.pdf",
-      file_name: "campus_navigation_app.pdf",
-      file_size: "3.1 MB",
-      uploadedBy: "John Doe",
-      uploadedAt: "2024-01-20",
-      cover_url: "/covers/research2.jpg",
-    },
-    {
-      id: 3,
-      title: "Financial Literacy and Spending Habits Among Young Adults",
-      authors: ["Tan, L.", "Rivera, C.", "Mendoza, R.", "Villanueva, J."],
-      category: "BUSINESS RESEARCH",
-      year: 2023,
-      downloads: 156,
-      views: 342,
-      file_url: "/sample-research-3.pdf",
-      file_name: "financial_literacy_study.pdf",
-      file_size: "1.8 MB",
-      uploadedBy: "Jane Smith",
-      uploadedAt: "2023-11-10",
-      cover_url: "/covers/research3.jpg",
-    },
-    {
-      id: 4,
-      title: "Feasibility Study of Solar-Powered Irrigation System",
-      authors: ["Ramos, A.", "Lopez, M.", "Fernandez, C."],
-      category: "FEASIBILITY STUDY",
-      year: 2024,
-      downloads: 98,
-      views: 234,
-      file_url: "/sample-research-4.pdf",
-      file_name: "solar_irrigation_feasibility.pdf",
-      file_size: "4.2 MB",
-      uploadedBy: "John Doe",
-      uploadedAt: "2024-02-01",
-      cover_url: "/covers/research4.jpg",
-    },
-    {
-      id: 5,
-      title: "Action Research on Collaborative Learning Strategies",
-      authors: ["Villanueva, R.", "Cruz, P.", "Santos, M."],
-      category: "ACTION RESEARCH",
-      year: 2023,
-      downloads: 67,
-      views: 189,
-      file_url: "/sample-research-5.pdf",
-      file_name: "collaborative_learning_action.pdf",
-      file_size: "2.9 MB",
-      uploadedBy: "Jane Smith",
-      uploadedAt: "2023-12-05",
-      cover_url: "/covers/research5.jpg",
-    },
-  ];
-
-  // Load data
-  useEffect(() => {
-    const load = async () => {
-      await new Promise((r) => setTimeout(r, 600));
-      setResearch(MOCK_RESEARCH);
-      setFilteredResearch(MOCK_RESEARCH);
-      setLoading(false);
-    };
-    load();
-  }, []);
-
-  // Get unique years from data
-  const uniqueYears = [...new Set(research.map((r) => r.year))].sort(
-    (a, b) => b - a,
-  );
-
-  // Format years for Select component
-  const yearOptions = uniqueYears.map((year) => ({
-    value: year,
-    label: String(year),
-  }));
-
-  // Format categories for Select component
-  const categoryOptions = categories.map((cat) => ({
-    value: cat,
-    label: cat,
-  }));
 
   // Apply filters
   useEffect(() => {
@@ -191,12 +112,12 @@ const StudentResearch = () => {
         (r) =>
           r.title?.toLowerCase().includes(q) ||
           r.authors?.some((author) => author.toLowerCase().includes(q)) ||
-          r.category?.toLowerCase().includes(q),
+          r.category?.name?.toLowerCase().includes(q),
       );
     }
 
     if (selectedCategory) {
-      filtered = filtered.filter((r) => r.category === selectedCategory);
+      filtered = filtered.filter((r) => r.category?.id === selectedCategory);
     }
 
     if (selectedYear) {
@@ -224,9 +145,17 @@ const StudentResearch = () => {
     setIsWarningModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (researchToDelete) {
-      setResearch(research.filter((r) => r.id !== researchToDelete.id));
+      const { success, error } = await studentResearchService.deleteResearch(
+        researchToDelete.id,
+      );
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success("Research paper deleted successfully");
+        await loadResearch();
+      }
       setIsWarningModalOpen(false);
       setResearchToDelete(null);
     }
@@ -245,15 +174,21 @@ const StudentResearch = () => {
   };
 
   const handleView = (item) => {
-    console.log("View research:", item.title);
+    navigate(`/student-research/view/${item.id}`);
   };
 
-  const handleDownload = (item) => {
-    console.log("Download research:", item.title);
-    // In real implementation, trigger file download
-    if (item.file_url && item.file_url !== "#") {
-      window.open(item.file_url, "_blank");
+  const handleDownload = async (item) => {
+    setDownloading(item.id);
+    const { url, error } = await studentResearchService.downloadResearchFile(
+      item.id,
+    );
+    if (error) {
+      toast.error(error);
+    } else if (url) {
+      window.open(url, "_blank");
+      toast.success("Download started");
     }
+    setDownloading(null);
   };
 
   const handleUploadResearch = () => {
@@ -266,13 +201,21 @@ const StudentResearch = () => {
     setIsCategoryModalOpen(true);
   };
 
-  const handleSaveCategories = (newCategories) => {
-    setCategories(newCategories);
-    // If the currently selected category no longer exists, clear it
-    if (selectedCategory && !newCategories.includes(selectedCategory)) {
-      setSelectedCategory("");
-    }
+  const handleSaveCategories = async () => {
+    await loadCategories();
   };
+
+  // Format categories for Select component
+  const categoryOptions = categories.map((cat) => ({
+    value: cat.id,
+    label: cat.name,
+  }));
+
+  // Format years for Select component
+  const yearOptions = years.map((year) => ({
+    value: year,
+    label: String(year),
+  }));
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -297,17 +240,8 @@ const StudentResearch = () => {
   if (loading) {
     return (
       <div className="bg-white rounded-xl p-6">
-        <div className="space-y-3">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg border border-gray-200 p-4 animate-pulse"
-            >
-              <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
-              <div className="h-3 bg-gray-100 rounded w-1/2 mb-2" />
-              <div className="h-3 bg-gray-100 rounded w-3/4" />
-            </div>
-          ))}
+        <div className="flex justify-center items-center py-12">
+          <Loader className="w-8 h-8 animate-spin text-blue-600" />
         </div>
       </div>
     );
@@ -447,7 +381,8 @@ const StudentResearch = () => {
             )}
             {selectedCategory && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-full">
-                Category: {selectedCategory}
+                Category:{" "}
+                {categories.find((c) => c.id === selectedCategory)?.name}
                 <button
                   onClick={() => setSelectedCategory("")}
                   className="hover:text-green-600"
@@ -561,28 +496,32 @@ const StudentResearch = () => {
                       {item.title}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      <div className="max-w-xs">{item.authors.join(", ")}</div>
+                      <div className="max-w-xs">
+                        {item.authors?.join(", ") || "N/A"}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(item.category)}`}
                       >
-                        {item.category}
+                        {item.category?.name || "Unknown"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{item.year}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
                         {/* File info */}
-                        {item.file_url && item.file_url !== "#" ? (
-                          <a
-                            href={item.file_url}
-                            download
+                        {item.file_url ? (
+                          <button
+                            onClick={() => handleDownload(item)}
+                            disabled={downloading === item.id}
                             className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-xs group"
-                            onClick={(e) => e.stopPropagation()}
-                            title={item.file_name}
                           >
-                            <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                            {downloading === item.id ? (
+                              <Loader className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                            )}
                             <span className="truncate max-w-[150px]">
                               {item.file_name?.length > 25
                                 ? item.file_name.substring(0, 22) + "..."
@@ -591,7 +530,7 @@ const StudentResearch = () => {
                             <span className="text-gray-400 text-xs">
                               ({item.file_size || "PDF"})
                             </span>
-                          </a>
+                          </button>
                         ) : (
                           <span className="text-gray-400 text-xs">
                             No file attached
@@ -632,9 +571,14 @@ const StudentResearch = () => {
                           </button>
                           <button
                             onClick={() => handleDownload(item)}
+                            disabled={downloading === item.id}
                             className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                           >
-                            <Download className="w-4 h-4" />
+                            {downloading === item.id ? (
+                              <Loader className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
                             Download
                           </button>
                           <button
@@ -660,7 +604,7 @@ const StudentResearch = () => {
             </table>
           </div>
 
-          {/* Pagination with Select component */}
+          {/* Pagination */}
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-2 min-w-[180px]">
               <span className="text-sm text-gray-600 whitespace-nowrap">
@@ -692,7 +636,7 @@ const StudentResearch = () => {
         onSave={handleSaveCategories}
       />
 
-      {/* Warning Modal for Delete - Updated to match Books component */}
+      {/* Warning Modal for Delete */}
       <WarningModal
         isOpen={isWarningModalOpen}
         onClose={handleCancelDelete}

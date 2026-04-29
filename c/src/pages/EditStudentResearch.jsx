@@ -13,28 +13,12 @@ import {
   ArrowLeft,
   Save,
   Eye,
+  Loader,
 } from "lucide-react";
 import CustomSelect from "../components/Select";
 import WarningModal from "@/components/modals/WarningModal";
-
-const CATEGORIES = [
-  { value: "CAPSTONE", label: "Capstone Project" },
-  { value: "BUSINESS RESEARCH", label: "Business Research" },
-  { value: "FEASIBILITY STUDY", label: "Feasibility Study" },
-  { value: "ACTION RESEARCH", label: "Action Research" },
-  { value: "EXPERIMENTAL THESIS", label: "Experimental Thesis" },
-];
-
-const getCategoryColor = (category) => {
-  const colors = {
-    CAPSTONE: "bg-red-100 text-red-700",
-    "BUSINESS RESEARCH": "bg-green-100 text-green-700",
-    "FEASIBILITY STUDY": "bg-yellow-100 text-yellow-700",
-    "ACTION RESEARCH": "bg-blue-100 text-blue-700",
-    "EXPERIMENTAL THESIS": "bg-purple-100 text-purple-700",
-  };
-  return colors[category] || "bg-gray-100 text-gray-700";
-};
+import studentResearchService from "@/services/student-research.service";
+import toast from "react-hot-toast";
 
 const EditStudentResearch = () => {
   const navigate = useNavigate();
@@ -43,38 +27,99 @@ const EditStudentResearch = () => {
   const existingResearch = location.state?.research;
 
   const [formData, setFormData] = useState({
-    title: existingResearch?.title || "",
-    authors: existingResearch?.authors || [""],
-    category: existingResearch?.category || "",
-    year: existingResearch?.year || new Date().getFullYear(),
+    title: "",
+    authors: [""],
+    categoryId: "",
+    year: new Date().getFullYear(),
   });
-
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [existingFile, setExistingFile] = useState({
-    name: existingResearch?.file_name,
-    size: existingResearch?.file_size,
-    url: existingResearch?.file_url,
-  });
+  const [loadingData, setLoadingData] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [existingFile, setExistingFile] = useState(null);
   const [showCancelWarning, setShowCancelWarning] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [removeCurrentFile, setRemoveCurrentFile] = useState(false);
+
+  // Load research data if not passed via state
+  useEffect(() => {
+    const loadData = async () => {
+      if (existingResearch) {
+        // Use data from state
+        setFormData({
+          title: existingResearch.title || "",
+          authors: existingResearch.authors?.length
+            ? existingResearch.authors
+            : [""],
+          categoryId: existingResearch.category?.id || "",
+          year: existingResearch.year || new Date().getFullYear(),
+        });
+        setExistingFile({
+          name: existingResearch.file_name,
+          size: existingResearch.file_size,
+          url: existingResearch.file_url,
+          storagePath: existingResearch.file_storage_path,
+        });
+        setLoadingData(false);
+      } else if (id) {
+        // Fetch from API
+        const { research, error } =
+          await studentResearchService.getResearchById(id);
+        if (error) {
+          toast.error("Failed to load research data");
+          navigate("/student-research");
+        } else if (research) {
+          setFormData({
+            title: research.title || "",
+            authors: research.authors?.length ? research.authors : [""],
+            categoryId: research.category?.id || "",
+            year: research.year || new Date().getFullYear(),
+          });
+          setExistingFile({
+            name: research.file_name,
+            size: research.file_size,
+            url: research.file_url,
+            storagePath: research.file_storage_path,
+          });
+        }
+        setLoadingData(false);
+      }
+    };
+
+    loadCategories();
+    loadData();
+  }, [id, existingResearch, navigate]);
+
+  const loadCategories = async () => {
+    const { categories: data, error } =
+      await studentResearchService.getCategories();
+    if (!error && data) {
+      setCategories(data);
+    }
+  };
 
   // Track changes
   useEffect(() => {
-    const originalData = {
-      title: existingResearch?.title || "",
-      authors: existingResearch?.authors || [""],
-      category: existingResearch?.category || "",
-      year: existingResearch?.year || new Date().getFullYear(),
-    };
+    if (!loadingData) {
+      const originalData = {
+        title: existingResearch?.title || formData.title,
+        authors: existingResearch?.authors || formData.authors,
+        categoryId: existingResearch?.category?.id || formData.categoryId,
+        year: existingResearch?.year || formData.year,
+      };
 
-    const hasFormChanges =
-      JSON.stringify(formData) !== JSON.stringify(originalData);
-    const hasFileChanges = file !== null;
+      const hasFormChanges =
+        formData.title !== originalData.title ||
+        JSON.stringify(formData.authors) !==
+          JSON.stringify(originalData.authors) ||
+        formData.categoryId !== originalData.categoryId ||
+        formData.year !== originalData.year;
+      const hasFileChanges = file !== null || removeCurrentFile;
 
-    setHasChanges(hasFormChanges || hasFileChanges);
-  }, [formData, file, existingResearch]);
+      setHasChanges(hasFormChanges || hasFileChanges);
+    }
+  }, [formData, file, removeCurrentFile, existingResearch, loadingData]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -101,7 +146,7 @@ const EditStudentResearch = () => {
   };
 
   const handleCategoryChange = (value) => {
-    setFormData({ ...formData, category: value });
+    setFormData({ ...formData, categoryId: value });
   };
 
   const handleYearChange = (e) => {
@@ -140,9 +185,9 @@ const EditStudentResearch = () => {
     setFileError("");
   };
 
-  const removeExistingFile = () => {
+  const handleRemoveExistingFile = () => {
+    setRemoveCurrentFile(true);
     setExistingFile(null);
-    setHasChanges(true);
   };
 
   const truncateFileName = (name, maxLength = 30) => {
@@ -153,31 +198,58 @@ const EditStudentResearch = () => {
     return `${nameWithoutExt.substring(0, maxLength - 3 - extension.length)}...${extension}`;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.title.trim()) {
-      alert("Please enter a title");
+      toast.error("Please enter a title");
       return;
     }
-    if (!formData.category) {
-      alert("Please select a category");
+    if (!formData.categoryId) {
+      toast.error("Please select a category");
       return;
     }
     if (formData.authors.some((author) => !author.trim())) {
-      alert("Please enter all author names or remove empty fields");
-      return;
-    }
-    if (!file && !existingFile) {
-      alert("Please upload a PDF file");
+      toast.error("Please enter all author names or remove empty fields");
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+
+    // Filter out empty authors
+    const filteredAuthors = formData.authors.filter((author) => author.trim());
+
+    // Prepare updates
+    const updates = {
+      title: formData.title.trim(),
+      authors: filteredAuthors,
+      categoryId: formData.categoryId,
+      year: formData.year,
+    };
+
+    // If removing current file and no new file, set file fields to null
+    if (removeCurrentFile && !file) {
+      updates.file_url = null;
+      updates.file_name = null;
+      updates.file_size = null;
+      updates.file_storage_path = null;
+    }
+
+    const { research, error } = await studentResearchService.updateResearch(
+      id,
+      updates,
+      file || null,
+    );
+
+    if (error) {
+      toast.error(error);
       setLoading(false);
-      navigate("/student-research");
-    }, 1000);
+    } else {
+      toast.success("Research paper updated successfully!");
+      setTimeout(() => {
+        navigate("/student-research");
+      }, 1000);
+    }
   };
 
   const handleCancel = () => {
@@ -193,16 +265,30 @@ const EditStudentResearch = () => {
     navigate("/student-research");
   };
 
-  const selectedCategory = CATEGORIES.find(
-    (c) => c.value === formData.category,
-  );
+  // Format categories for Select component
+  const categoryOptions = categories.map((cat) => ({
+    value: cat.id,
+    label: cat.name,
+  }));
+
+  const selectedCategory = categories.find((c) => c.id === formData.categoryId);
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 20 }, (_, i) => currentYear - i);
 
+  if (loadingData) {
+    return (
+      <div className="bg-white rounded-xl p-6">
+        <div className="flex justify-center items-center py-12">
+          <Loader className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl p-6">
-      {/* Header with Back Button like AddProgram */}
+      {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={handleCancel}
@@ -284,7 +370,7 @@ const EditStudentResearch = () => {
               )}
 
               {/* Existing File Display */}
-              {existingFile && !file && (
+              {existingFile && !file && !removeCurrentFile && (
                 <div className="mt-4">
                   <p className="text-sm font-medium text-gray-700 mb-2">
                     Current File:
@@ -303,7 +389,7 @@ const EditStudentResearch = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={removeExistingFile}
+                      onClick={handleRemoveExistingFile}
                       className="p-2 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                       title="Remove file"
                     >
@@ -351,7 +437,7 @@ const EditStudentResearch = () => {
                   </div>
                 </div>
 
-                {/* Authors with Add Button */}
+                {/* Authors */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -402,8 +488,8 @@ const EditStudentResearch = () => {
                   <div>
                     <CustomSelect
                       label="Category"
-                      options={CATEGORIES}
-                      value={formData.category}
+                      options={categoryOptions}
+                      value={formData.categoryId}
                       onChange={handleCategoryChange}
                       placeholder="Select a category..."
                       required={true}
@@ -438,9 +524,12 @@ const EditStudentResearch = () => {
                     </p>
                     <div className="flex items-center gap-3">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getCategoryColor(selectedCategory.value)}`}
+                        className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                        style={{
+                          backgroundColor: selectedCategory.color || "#3b82f6",
+                        }}
                       >
-                        {selectedCategory.label}
+                        {selectedCategory.name}
                       </span>
                     </div>
                   </div>
@@ -457,7 +546,7 @@ const EditStudentResearch = () => {
               >
                 {loading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Loader className="w-5 h-5 animate-spin" />
                     Updating...
                   </>
                 ) : (

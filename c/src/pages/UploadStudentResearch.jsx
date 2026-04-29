@@ -1,5 +1,5 @@
 // src/pages/UploadStudentResearch.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Upload,
@@ -12,28 +12,12 @@ import {
   UserPlus,
   Trash2,
   ArrowLeft,
+  Loader,
 } from "lucide-react";
 import instruction from "@/assets/images/instruction.png";
 import CustomSelect from "../components/Select";
-
-const CATEGORIES = [
-  { value: "CAPSTONE", label: "Capstone Project" },
-  { value: "BUSINESS RESEARCH", label: "Business Research" },
-  { value: "FEASIBILITY STUDY", label: "Feasibility Study" },
-  { value: "ACTION RESEARCH", label: "Action Research" },
-  { value: "EXPERIMENTAL THESIS", label: "Experimental Thesis" },
-];
-
-const getCategoryColor = (category) => {
-  const colors = {
-    CAPSTONE: "bg-red-100 text-red-700",
-    "BUSINESS RESEARCH": "bg-green-100 text-green-700",
-    "FEASIBILITY STUDY": "bg-yellow-100 text-yellow-700",
-    "ACTION RESEARCH": "bg-blue-100 text-blue-700",
-    "EXPERIMENTAL THESIS": "bg-purple-100 text-purple-700",
-  };
-  return colors[category] || "bg-gray-100 text-gray-700";
-};
+import studentResearchService from "@/services/student-research.service";
+import toast from "react-hot-toast";
 
 const UploadStudentResearch = () => {
   const navigate = useNavigate();
@@ -41,11 +25,27 @@ const UploadStudentResearch = () => {
   const [formData, setFormData] = useState({
     title: "",
     authors: [""],
-    category: "",
+    categoryId: "",
   });
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Load categories
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const loadCategories = async () => {
+    const { categories: data, error } =
+      await studentResearchService.getCategories();
+    if (!error && data) {
+      setCategories(data);
+    }
+    setLoadingCategories(false);
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -72,7 +72,7 @@ const UploadStudentResearch = () => {
   };
 
   const handleCategoryChange = (value) => {
-    setFormData({ ...formData, category: value });
+    setFormData({ ...formData, categoryId: value });
   };
 
   const handleFileChange = async (e) => {
@@ -112,40 +112,63 @@ const UploadStudentResearch = () => {
     return `${nameWithoutExt.substring(0, maxLength - 3 - extension.length)}...${extension}`;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.title.trim()) {
-      alert("Please enter a title");
+      toast.error("Please enter a title");
       return;
     }
-    if (!formData.category) {
-      alert("Please select a category");
+    if (!formData.categoryId) {
+      toast.error("Please select a category");
       return;
     }
     if (formData.authors.some((author) => !author.trim())) {
-      alert("Please enter all author names or remove empty fields");
+      toast.error("Please enter all author names or remove empty fields");
       return;
     }
     if (!file) {
-      alert("Please upload a PDF file");
+      toast.error("Please upload a PDF file");
       return;
     }
 
     setLoading(true);
-    setTimeout(() => {
+
+    // Filter out empty authors
+    const filteredAuthors = formData.authors.filter((author) => author.trim());
+
+    const { research, error } = await studentResearchService.createResearch(
+      {
+        title: formData.title.trim(),
+        authors: filteredAuthors,
+        categoryId: formData.categoryId,
+        year: new Date().getFullYear(),
+      },
+      file,
+    );
+
+    if (error) {
+      toast.error(error);
       setLoading(false);
-      navigate("/student-research");
-    }, 1000);
+    } else {
+      toast.success("Research paper uploaded successfully!");
+      setTimeout(() => {
+        navigate("/student-research");
+      }, 1000);
+    }
   };
 
-  const selectedCategory = CATEGORIES.find(
-    (c) => c.value === formData.category,
-  );
+  // Format categories for Select component
+  const categoryOptions = categories.map((cat) => ({
+    value: cat.id,
+    label: cat.name,
+  }));
+
+  const selectedCategory = categories.find((c) => c.id === formData.categoryId);
 
   return (
     <div className="bg-white rounded-xl p-6">
-      {/* Header with back button like AddProgram */}
+      {/* Header */}
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={() => navigate("/student-research")}
@@ -261,7 +284,7 @@ const UploadStudentResearch = () => {
                   </div>
                 </div>
 
-                {/* Authors with Add Button */}
+                {/* Authors */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-gray-700">
@@ -307,17 +330,22 @@ const UploadStudentResearch = () => {
                   </p>
                 </div>
 
-                {/* Category Select using CustomSelect */}
+                {/* Category Select */}
                 <div>
                   <CustomSelect
                     label="Category"
-                    options={CATEGORIES}
-                    value={formData.category}
+                    options={categoryOptions}
+                    value={formData.categoryId}
                     onChange={handleCategoryChange}
-                    placeholder="Select a category..."
+                    placeholder={
+                      loadingCategories
+                        ? "Loading categories..."
+                        : "Select a category..."
+                    }
                     required={true}
                     isClearable={true}
                     isSearchable={true}
+                    disabled={loadingCategories}
                   />
                 </div>
 
@@ -329,9 +357,12 @@ const UploadStudentResearch = () => {
                     </p>
                     <div className="flex items-center gap-3">
                       <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getCategoryColor(selectedCategory.value)}`}
+                        className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                        style={{
+                          backgroundColor: selectedCategory.color || "#3b82f6",
+                        }}
                       >
-                        {selectedCategory.label}
+                        {selectedCategory.name}
                       </span>
                     </div>
                   </div>
@@ -344,9 +375,16 @@ const UploadStudentResearch = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
               >
-                {loading ? "Uploading..." : "Upload Research"}
+                {loading ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  "Upload Research"
+                )}
               </button>
               <button
                 type="button"
@@ -359,7 +397,7 @@ const UploadStudentResearch = () => {
           </form>
         </div>
 
-        {/* Right Column - Instructions with Image */}
+        {/* Right Column - Instructions */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
