@@ -1,5 +1,5 @@
-// src/pages/Users.jsx (Updated version)
-import React, { useState, useEffect } from "react";
+// src/pages/Users.jsx (Updated - Super Admin only, removed role filter)
+import React, { useState, useEffect, useRef } from "react";
 import {
   Users as UsersIcon,
   Plus,
@@ -16,6 +16,7 @@ import AddNewAdminModal from "@/components/modals/AddNewAdminModal";
 import WarningModal from "@/components/modals/WarningModal";
 import PromoteToSuperAdminModal from "@/components/modals/PromoteToSuperAdminModal";
 import Pagination from "@/components/Pagination";
+import Select from "@/components/Select";
 import adminService from "@/services/admin.service";
 import { useAuth } from "@/context/AuthContext";
 
@@ -23,7 +24,6 @@ const Users = () => {
   const [admins, setAdmins] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
@@ -32,23 +32,63 @@ const Users = () => {
   const [adminToPromote, setAdminToPromote] = useState(null);
   const [openActionMenu, setOpenActionMenu] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentUserRole, setCurrentUserRole] = useState("super_admin");
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
   const { user } = useAuth();
+  const actionButtonRefs = useRef({});
+
+  // Status options for Select component
+  const statusOptions = [
+    { value: "", label: "All Status" },
+    { value: "active", label: "Active" },
+    { value: "restricted", label: "Restricted" },
+  ];
 
   useEffect(() => {
     fetchAdmins();
-    // Get current user role and ID from auth context
     if (user) {
-      setCurrentUserRole(user.role === "superadmin" ? "super_admin" : "admin");
       setCurrentUserId(user.id);
     }
   }, [user]);
+
+  // Update online status every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastUpdateTime(Date.now());
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (openActionMenu !== null) {
+        const buttonElement = actionButtonRefs.current[openActionMenu];
+        const menuElement = document.getElementById(
+          `action-menu-${openActionMenu}`,
+        );
+
+        if (
+          buttonElement &&
+          !buttonElement.contains(event.target) &&
+          menuElement &&
+          !menuElement.contains(event.target)
+        ) {
+          setOpenActionMenu(null);
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openActionMenu]);
 
   const fetchAdmins = async () => {
     setLoading(true);
@@ -61,18 +101,28 @@ const Users = () => {
     setLoading(false);
   };
 
-  // Filter admins
+  // Filter admins - exclude current user
   const filteredAdmins = admins.filter((admin) => {
+    // Don't show current user in the table
+    if (admin.id === currentUserId) return false;
+
     const matchesSearch =
       searchTerm === "" ||
-      admin.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.email.toLowerCase().includes(searchTerm.toLowerCase());
+      (
+        admin.firstName?.toLowerCase() ||
+        admin.firstname?.toLowerCase() ||
+        ""
+      ).includes(searchTerm.toLowerCase()) ||
+      (
+        admin.lastName?.toLowerCase() ||
+        admin.lastname?.toLowerCase() ||
+        ""
+      ).includes(searchTerm.toLowerCase()) ||
+      (admin.email?.toLowerCase() || "").includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === "" || admin.status === statusFilter;
-    const matchesRole = roleFilter === "" || admin.role === roleFilter;
 
-    return matchesSearch && matchesStatus && matchesRole;
+    return matchesSearch && matchesStatus;
   });
 
   // Pagination calculations
@@ -81,29 +131,25 @@ const Users = () => {
   const currentItems = filteredAdmins.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredAdmins.length / itemsPerPage);
 
-  const activeFilterCount = [searchTerm, statusFilter, roleFilter].filter(
-    Boolean,
-  ).length;
+  const activeFilterCount = [searchTerm, statusFilter].filter(Boolean).length;
 
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("");
-    setRoleFilter("");
     setCurrentPage(1);
   };
 
-  // Update the handleAddAdmin function in Users.jsx (find this function and replace it)
   const handleAddAdmin = async (adminData) => {
     const result = await adminService.addAdmin(adminData, currentUserId);
     if (result.success) {
       toast.success(
         `${adminData.firstName} ${adminData.lastName} has been added as an admin. Default password: ${result.password}`,
         {
-          duration: 8000, // Show longer for password visibility
+          duration: 8000,
         },
       );
-      await fetchAdmins(); // Refresh the list
-      return result; // Return result to show password in modal
+      await fetchAdmins();
+      return result;
     } else {
       toast.error(result.error || "Failed to add admin");
     }
@@ -137,9 +183,9 @@ const Users = () => {
       );
       if (result.success) {
         toast.success(
-          `${adminToAction.firstName} ${adminToAction.lastName} has been restricted`,
+          `${adminToAction.firstName || adminToAction.firstname} ${adminToAction.lastName || adminToAction.lastname} has been restricted`,
         );
-        await fetchAdmins(); // Refresh the list
+        await fetchAdmins();
       } else {
         toast.error(result.error || "Failed to restrict user");
       }
@@ -150,9 +196,9 @@ const Users = () => {
       );
       if (result.success) {
         toast.success(
-          `${adminToAction.firstName} ${adminToAction.lastName} has been unrestricted`,
+          `${adminToAction.firstName || adminToAction.firstname} ${adminToAction.lastName || adminToAction.lastname} has been unrestricted`,
         );
-        await fetchAdmins(); // Refresh the list
+        await fetchAdmins();
       } else {
         toast.error(result.error || "Failed to unrestrict user");
       }
@@ -171,9 +217,9 @@ const Users = () => {
       );
       if (result.success) {
         toast.success(
-          `${adminToPromote.firstName} ${adminToPromote.lastName} has been promoted to Super Admin`,
+          `${adminToPromote.firstName || adminToPromote.firstname} ${adminToPromote.lastName || adminToPromote.lastname} has been promoted to Super Admin`,
         );
-        await fetchAdmins(); // Refresh the list
+        await fetchAdmins();
       } else {
         toast.error(result.error || "Failed to promote user");
       }
@@ -197,28 +243,54 @@ const Users = () => {
     setCurrentPage(page);
   };
 
+  const handleActionMenuOpen = (adminId, event) => {
+    event.stopPropagation();
+
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const menuHeight = 150;
+
+    let top = rect.bottom + window.scrollY + 5;
+
+    if (spaceBelow < menuHeight) {
+      top = rect.top + window.scrollY - menuHeight - 5;
+    }
+
+    setMenuPosition({
+      top: top,
+      left: rect.right + window.scrollX - 180,
+    });
+
+    setOpenActionMenu(openActionMenu === adminId ? null : adminId);
+  };
+
   const getTimeAgo = (dateString) => {
+    if (!dateString) return null;
+
     const date = new Date(dateString);
     const now = new Date();
-    const seconds = Math.floor((now - date) / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    const months = Math.floor(days / 30);
-    const years = Math.floor(days / 365);
+    const diffMs = now - date;
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    const diffMonths = Math.floor(diffDays / 30);
+    const diffYears = Math.floor(diffDays / 365);
 
-    if (seconds < 60) {
-      return "just now";
-    } else if (minutes < 60) {
-      return `${minutes}min`;
-    } else if (hours < 24) {
-      return `${hours}hr${hours > 1 ? "" : ""}`;
-    } else if (days < 30) {
-      return `${days}day${days > 1 ? "s" : ""}`;
-    } else if (months < 12) {
-      return `${months}mon${months > 1 ? "s" : ""}`;
+    if (diffSeconds < 60) {
+      return `${diffSeconds} seconds ago`;
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes} minute${diffMinutes !== 1 ? "s" : ""} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours !== 1 ? "s" : ""} ago`;
+    } else if (diffDays < 30) {
+      return `${diffDays} day${diffDays !== 1 ? "s" : ""} ago`;
+    } else if (diffMonths < 12) {
+      return `${diffMonths} month${diffMonths !== 1 ? "s" : ""} ago`;
     } else {
-      return `${years}yr${years > 1 ? "s" : ""}`;
+      return `${diffYears} year${diffYears !== 1 ? "s" : ""} ago`;
     }
   };
 
@@ -240,7 +312,7 @@ const Users = () => {
   };
 
   const getRoleBadge = (role) => {
-    if (role === "super_admin") {
+    if (role === "super_admin" || role === "superadmin") {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
           <Crown className="w-3 h-3" />
@@ -267,44 +339,57 @@ const Users = () => {
       );
     }
 
+    if (!lastActive) {
+      return (
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+          <span className="text-sm text-gray-500">Never logged in</span>
+        </div>
+      );
+    }
+
     const lastActiveDate = new Date(lastActive);
     const now = new Date();
     const diffMinutes = Math.floor((now - lastActiveDate) / 1000 / 60);
-    const isOnline = diffMinutes < 5;
+    // User is considered online if their last activity was within 2 minutes
+    const isOnline = diffMinutes < 2;
 
     if (isOnline) {
       return (
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-          <span className="text-sm text-gray-900">Online</span>
+          <span className="text-sm text-gray-900 font-medium">Online</span>
         </div>
       );
     } else {
+      const timeAgo = getTimeAgo(lastActive);
       return (
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-          <span className="text-sm text-gray-500">
-            {getTimeAgo(lastActive)}
-          </span>
+          <span className="text-sm text-gray-500">Last active: {timeAgo}</span>
         </div>
       );
     }
   };
 
-  const canModifyUsers = currentUserRole === "super_admin";
+  // Super admin can modify all users
+  const canModifyUsers = true;
 
   const getWarningModalContent = () => {
+    const firstName = adminToAction?.firstName || adminToAction?.firstname;
+    const lastName = adminToAction?.lastName || adminToAction?.lastname;
+
     if (actionType === "restrict") {
       return {
         title: "Restrict User",
-        message: `Are you sure you want to restrict "${adminToAction?.firstName} ${adminToAction?.lastName}"? Restricted users will not be able to access the system until unrestricted.`,
+        message: `Are you sure you want to restrict "${firstName} ${lastName}"? Restricted users will not be able to access the system until unrestricted.`,
         confirmText: "Restrict",
         isDanger: true,
       };
     } else {
       return {
         title: "Unrestrict User",
-        message: `Are you sure you want to unrestrict "${adminToAction?.firstName} ${adminToAction?.lastName}"? They will regain access to the system.`,
+        message: `Are you sure you want to unrestrict "${firstName} ${lastName}"? They will regain access to the system.`,
         confirmText: "Unrestrict",
         isDanger: false,
       };
@@ -320,7 +405,7 @@ const Users = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Admin Management</h1>
           <p className="mt-2 text-gray-600">
-            Manage system administrators and their roles
+            Manage system administrators (Super Admin only)
           </p>
         </div>
         <button
@@ -349,34 +434,19 @@ const Users = () => {
             />
           </div>
 
-          <div className="w-40">
-            <select
+          {/* Status Filter only - removed role filter since this is super admin only */}
+          <div className="w-48">
+            <Select
+              options={statusOptions}
               value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
+              onChange={(value) => {
+                setStatusFilter(value);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            >
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="restricted">Restricted</option>
-            </select>
-          </div>
-
-          <div className="w-40">
-            <select
-              value={roleFilter}
-              onChange={(e) => {
-                setRoleFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            >
-              <option value="">All Roles</option>
-              <option value="super_admin">Super Admin</option>
-              <option value="admin">Admin</option>
-            </select>
+              placeholder="Filter by status"
+              isClearable={true}
+              className="w-full"
+            />
           </div>
         </div>
 
@@ -396,20 +466,9 @@ const Users = () => {
             )}
             {statusFilter && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-                Status: {statusFilter}
+                Status: {statusFilter === "active" ? "Active" : "Restricted"}
                 <button
                   onClick={() => setStatusFilter("")}
-                  className="hover:text-blue-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </span>
-            )}
-            {roleFilter && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">
-                Role: {roleFilter === "super_admin" ? "Super Admin" : "Admin"}
-                <button
-                  onClick={() => setRoleFilter("")}
                   className="hover:text-blue-600"
                 >
                   <X className="w-3 h-3" />
@@ -427,6 +486,9 @@ const Users = () => {
 
         <div className="mt-2 text-xs text-gray-500">
           Showing {currentItems.length} of {filteredAdmins.length} admins
+          {filteredAdmins.length !== admins.length - 1 && (
+            <span className="ml-2 text-gray-400">(excluding your account)</span>
+          )}
         </div>
       </div>
 
@@ -436,7 +498,8 @@ const Users = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading admins...</p>
         </div>
-      ) : admins.length === 0 ? (
+      ) : admins.length === 0 ||
+        (admins.length === 1 && admins[0]?.id === currentUserId) ? (
         <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-blue-50 rounded-full">
@@ -444,10 +507,10 @@ const Users = () => {
             </div>
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            No Admins Added Yet
+            No Other Admins Found
           </h3>
           <p className="text-gray-600 mb-6">
-            Start by adding your first system administrator
+            You are the only admin in the system
           </p>
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -467,7 +530,7 @@ const Users = () => {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-y border-gray-200">
                 <tr>
@@ -484,7 +547,7 @@ const Users = () => {
                     Status
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">
-                    Online Status
+                    Last Activity
                   </th>
                   <th className="px-4 py-3 text-center font-medium text-gray-600 w-12">
                     Actions
@@ -498,7 +561,8 @@ const Users = () => {
                     className="hover:bg-gray-50 transition-colors group"
                   >
                     <td className="px-4 py-3 font-medium text-gray-900">
-                      {admin.firstName} {admin.lastName}
+                      {admin.firstName || admin.firstname}{" "}
+                      {admin.lastName || admin.lastname}
                     </td>
                     <td className="px-4 py-3 text-gray-600">{admin.email}</td>
                     <td className="px-4 py-3">{getRoleBadge(admin.role)}</td>
@@ -506,62 +570,78 @@ const Users = () => {
                       {getStatusBadge(admin.status)}
                     </td>
                     <td className="px-4 py-3">
-                      {getActiveStatusDisplay(admin.lastActive, admin.status)}
+                      {getActiveStatusDisplay(
+                        admin.lastActive || admin.last_login,
+                        admin.status,
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center relative">
                       <button
-                        onClick={() =>
-                          setOpenActionMenu(
-                            openActionMenu === admin.id ? null : admin.id,
-                          )
-                        }
+                        ref={(el) => {
+                          if (el) actionButtonRefs.current[admin.id] = el;
+                        }}
+                        onClick={(e) => handleActionMenuOpen(admin.id, e)}
                         className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
                         aria-label="Actions"
                       >
                         <MoreVertical className="w-5 h-5 text-gray-500" />
                       </button>
-
-                      {openActionMenu === admin.id && (
-                        <div className="absolute right-4 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                          {canModifyUsers &&
-                            (admin.status === "restricted" ? (
-                              <button
-                                onClick={() => handleUnrestrictClick(admin)}
-                                className="w-full px-3 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors"
-                              >
-                                <Unlock className="w-4 h-4" />
-                                Unrestrict User
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleRestrictClick(admin)}
-                                className="w-full px-3 py-2 text-left text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition-colors"
-                              >
-                                <Ban className="w-4 h-4" />
-                                Restrict User
-                              </button>
-                            ))}
-
-                          {canModifyUsers && admin.role === "admin" && (
-                            <>
-                              <div className="border-t border-gray-100 my-1"></div>
-                              <button
-                                onClick={() => handlePromoteClick(admin)}
-                                className="w-full px-3 py-2 text-left text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2 transition-colors"
-                              >
-                                <Crown className="w-4 h-4" />
-                                Promote to Super Admin
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Floating Action Menu */}
+          {openActionMenu !== null &&
+            (() => {
+              const admin = admins.find((a) => a.id === openActionMenu);
+              if (!admin) return null;
+
+              return (
+                <div
+                  id={`action-menu-${openActionMenu}`}
+                  className="fixed bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50 min-w-[180px]"
+                  style={{
+                    top: `${menuPosition.top}px`,
+                    left: `${menuPosition.left}px`,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {admin.status === "restricted" ? (
+                    <button
+                      onClick={() => handleUnrestrictClick(admin)}
+                      className="w-full px-3 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2 transition-colors"
+                    >
+                      <Unlock className="w-4 h-4" />
+                      Unrestrict User
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleRestrictClick(admin)}
+                      className="w-full px-3 py-2 text-left text-sm text-orange-600 hover:bg-orange-50 flex items-center gap-2 transition-colors"
+                    >
+                      <Ban className="w-4 h-4" />
+                      Restrict User
+                    </button>
+                  )}
+
+                  {admin.role === "admin" && (
+                    <>
+                      <div className="border-t border-gray-100 my-1"></div>
+                      <button
+                        onClick={() => handlePromoteClick(admin)}
+                        className="w-full px-3 py-2 text-left text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2 transition-colors"
+                      >
+                        <Crown className="w-4 h-4" />
+                        Promote to Super Admin
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
           {totalPages > 1 && (
             <div className="mt-6">
@@ -598,7 +678,7 @@ const Users = () => {
         isOpen={isPromoteModalOpen}
         onClose={handleCancelPromote}
         onConfirm={handleConfirmPromote}
-        adminName={`${adminToPromote?.firstName} ${adminToPromote?.lastName}`}
+        adminName={`${adminToPromote?.firstName || adminToPromote?.firstname} ${adminToPromote?.lastName || adminToPromote?.lastname}`}
         adminEmail={adminToPromote?.email}
       />
     </div>

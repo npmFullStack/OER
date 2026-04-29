@@ -4,16 +4,13 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
-  Upload,
   Settings,
   ChevronRight,
-  User,
   LogOut,
   GraduationCap,
   Library,
   Users,
   FileText,
-  PlusCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import WarningModal from "@/components/modals/WarningModal";
@@ -59,8 +56,9 @@ const Sidebar = ({ isOpen, onClose }) => {
       { path: "/settings", name: "Settings", icon: Settings },
     ];
 
-    // Only show Users menu for superadmin
-    if (user?.role === "superadmin") {
+    // Only show Users menu for superadmin (both formats)
+    const userRole = user?.role?.toLowerCase();
+    if (userRole === "superadmin" || userRole === "super_admin") {
       items.push({ path: "/users", name: "Admins", icon: Users });
     }
 
@@ -123,7 +121,10 @@ const Sidebar = ({ isOpen, onClose }) => {
   // Get user role display
   const getRoleDisplay = () => {
     if (!user) return "";
-    return user.role === "superadmin" ? "Super Admin" : "Admin";
+    const role = user.role?.toLowerCase();
+    return role === "superadmin" || role === "super_admin"
+      ? "Super Admin"
+      : "Admin";
   };
 
   const sidebarContent = (

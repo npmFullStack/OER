@@ -14,7 +14,6 @@ import {
   Save,
   Eye,
 } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
 import CustomSelect from "../components/Select";
 import WarningModal from "@/components/modals/WarningModal";
 
@@ -53,23 +52,13 @@ const EditStudentResearch = () => {
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [coverPreview, setCoverPreview] = useState(null);
-  const [existingCover, setExistingCover] = useState(
-    existingResearch?.cover_url || null,
-  );
   const [existingFile, setExistingFile] = useState({
     name: existingResearch?.file_name,
     size: existingResearch?.file_size,
     url: existingResearch?.file_url,
   });
-  const [extractingCover, setExtractingCover] = useState(false);
   const [showCancelWarning, setShowCancelWarning] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-
-  useEffect(() => {
-    const pdfjsVersion = pdfjsLib.version;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
-  }, []);
 
   // Track changes
   useEffect(() => {
@@ -122,64 +111,9 @@ const EditStudentResearch = () => {
     });
   };
 
-  const renderPdfPage = async (arrayBuffer) => {
-    const loadingTask = pdfjsLib.getDocument({
-      data: arrayBuffer,
-      useSystemFonts: true,
-      disableRange: true,
-      disableStream: true,
-    });
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(1);
-    const scale = 1.5;
-    const viewport = page.getViewport({ scale });
-
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d", { alpha: false });
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-
-    context.fillStyle = "#FFFFFF";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    await page.render({ canvasContext: context, viewport, background: "white" })
-      .promise;
-    return canvas.toDataURL("image/jpeg", 0.85);
-  };
-
-  const extractPdfCover = async (file) => {
-    setExtractingCover(true);
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfjsVersion = pdfjsLib.version;
-
-    const workerUrls = [
-      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`,
-      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
-      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/legacy/build/pdf.worker.min.js`,
-      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`,
-    ];
-
-    for (const workerUrl of workerUrls) {
-      try {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-        const dataUrl = await renderPdfPage(arrayBuffer.slice(0));
-        setCoverPreview(dataUrl);
-        setExistingCover(null);
-        setExtractingCover(false);
-        return;
-      } catch (err) {
-        console.warn(`Worker failed with ${workerUrl}:`, err.message);
-      }
-    }
-
-    setCoverPreview(null);
-    setExtractingCover(false);
-  };
-
   const handleFileChange = async (e) => {
     const selectedFile = e.target.files[0];
     setFileError("");
-    setCoverPreview(null);
 
     if (!selectedFile) {
       setFile(null);
@@ -199,12 +133,10 @@ const EditStudentResearch = () => {
     }
 
     setFile(selectedFile);
-    await extractPdfCover(selectedFile);
   };
 
   const removeFile = () => {
     setFile(null);
-    setCoverPreview(null);
     setFileError("");
   };
 
@@ -224,7 +156,6 @@ const EditStudentResearch = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validate required fields
     if (!formData.title.trim()) {
       alert("Please enter a title");
       return;
@@ -243,7 +174,6 @@ const EditStudentResearch = () => {
     }
 
     setLoading(true);
-    // Simulate update
     setTimeout(() => {
       setLoading(false);
       navigate("/student-research");
@@ -267,19 +197,18 @@ const EditStudentResearch = () => {
     (c) => c.value === formData.category,
   );
 
-  // Generate year options (last 10 years)
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 20 }, (_, i) => currentYear - i);
 
   return (
     <div className="bg-white rounded-xl p-6">
-      {/* Header with Back Button */}
+      {/* Header with Back Button like AddProgram */}
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={handleCancel}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
@@ -351,39 +280,6 @@ const EditStudentResearch = () => {
                       <X className="w-5 h-5 text-gray-500" />
                     </button>
                   </div>
-
-                  {extractingCover ? (
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0 animate-pulse"></div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          Extracting cover page...
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Please wait while we process your PDF
-                        </p>
-                      </div>
-                    </div>
-                  ) : coverPreview ? (
-                    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                        <img
-                          src={coverPreview}
-                          alt="Cover preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          New cover page detected
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          This will replace the existing cover
-                        </p>
-                      </div>
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    </div>
-                  ) : null}
                 </div>
               )}
 
@@ -418,32 +314,6 @@ const EditStudentResearch = () => {
                     Current file will be kept unless you upload a new one or
                     remove it
                   </p>
-                </div>
-              )}
-
-              {/* Existing Cover Display */}
-              {existingCover && !coverPreview && !file && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    Current Cover:
-                  </p>
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="w-16 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                      <img
-                        src={existingCover}
-                        alt="Current cover"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900">
-                        Existing cover image
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        This cover will be kept unless you upload a new PDF
-                      </p>
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -582,7 +452,7 @@ const EditStudentResearch = () => {
             <div className="flex gap-4">
               <button
                 type="submit"
-                disabled={loading || extractingCover}
+                disabled={loading}
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -630,11 +500,6 @@ const EditStudentResearch = () => {
                 },
                 {
                   n: 3,
-                  title: "Cover Page Updates",
-                  desc: "New PDF = new cover automatically extracted",
-                },
-                {
-                  n: 4,
                   title: "Save Changes",
                   desc: "Click 'Save Changes' to apply updates",
                 },
