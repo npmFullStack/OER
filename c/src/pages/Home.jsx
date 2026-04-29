@@ -12,6 +12,7 @@ import {
   Filter,
   X,
   MapPin,
+  Eye,
 } from "lucide-react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -139,6 +140,72 @@ const hexToLightBg = (hex) => {
 // Shelf location color mapping - updated to use bg-blue-600 with white text
 const getShelfLocationColor = (location) => {
   return "bg-blue-600 text-white";
+};
+
+// Student Research Card Component
+const StudentResearchCard = ({ research }) => {
+  const getCategoryColor = (category) => {
+    const colors = {
+      CAPSTONE: "bg-red-100 text-red-700",
+      "BUSINESS RESEARCH": "bg-green-100 text-green-700",
+      "FEASIBILITY STUDY": "bg-yellow-100 text-yellow-700",
+      "ACTION RESEARCH": "bg-blue-100 text-blue-700",
+      "EXPERIMENTAL THESIS": "bg-indigo-100 text-indigo-700",
+    };
+    return colors[category] || "bg-gray-100 text-gray-700";
+  };
+
+  const formatNumber = (n) => {
+    if (!n && n !== 0) return "0";
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+    return String(n);
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+      <div className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span
+                className={`${getCategoryColor(research.category)} text-xs font-semibold px-2 py-0.5 rounded-full`}
+              >
+                {research.category}
+              </span>
+              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                {research.year}
+              </span>
+            </div>
+            <h3 className="font-semibold text-textPrimary mb-2 text-base line-clamp-2">
+              {research.title}
+            </h3>
+            <p className="text-sm text-textSecondary line-clamp-1">
+              <span className="font-medium">Authors:</span> {research.authors}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5" />
+                {formatNumber(research.views)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Download className="w-3.5 h-3.5" />
+                {formatNumber(research.downloads)}
+              </span>
+            </div>
+            <Link
+              to={`/student-research/${research.id}`}
+              className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primaryDark transition-colors flex items-center gap-1"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              View Research
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const Home = () => {
@@ -317,6 +384,48 @@ const Home = () => {
       file_size: 2883584,
       downloads: 167,
       uploader_name: "Admin",
+    },
+  ]);
+
+  // Featured Student Research data for homepage
+  const [featuredResearch, setFeaturedResearch] = useState([
+    {
+      id: 1,
+      title: "E-Learning Platform Usability Study for Remote Education",
+      authors: "MADAYAG, MANGORANGCA, ABIEZA, MENDIOLA",
+      category: "CAPSTONE",
+      year: 2024,
+      downloads: 234,
+      views: 567,
+    },
+    {
+      id: 2,
+      title:
+        "Financial Literacy and Spending Habits Among Young Adults in Metro Manila",
+      authors: "TAN, RIVERA, MENDOZA, VILLANUEVA",
+      category: "BUSINESS RESEARCH",
+      year: 2023,
+      downloads: 156,
+      views: 342,
+    },
+    {
+      id: 3,
+      title: "Experimental Thesis: Gamification Effects on Student Engagement",
+      authors: "ROMERO, DIZON, AQUINO, CASTRO",
+      category: "EXPERIMENTAL THESIS",
+      year: 2024,
+      downloads: 312,
+      views: 678,
+    },
+    {
+      id: 4,
+      title:
+        "Action Research: Improving Reading Comprehension Through Digital Tools",
+      authors: "MERCADO, CASTILLO, GARCIA, REYES",
+      category: "ACTION RESEARCH",
+      year: 2023,
+      downloads: 145,
+      views: 321,
     },
   ]);
 
@@ -790,6 +899,44 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Student Research Section */}
+      <section className="py-12 md:py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 md:mb-12 gap-4">
+            <div>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-textPrimary mb-2">
+                Student Research
+              </h2>
+              <p className="text-sm md:text-base text-textSecondary">
+                Browse capstone projects, business research, feasibility
+                studies, and theses
+              </p>
+            </div>
+            <Link
+              to="/student-research"
+              className="text-primary hover:text-primaryDark font-semibold flex items-center gap-2 transition-colors text-sm md:text-base"
+            >
+              Browse All Research <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {featuredResearch.map((research) => (
+              <StudentResearchCard key={research.id} research={research} />
+            ))}
+          </div>
+
+          <div className="mt-6 text-center">
+            <Link
+              to="/student-research"
+              className="inline-flex items-center gap-2 text-primary hover:text-primaryDark font-medium text-sm"
+            >
+              View all student research papers →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-12 md:py-20 bg-bgColor">
         <div className="container mx-auto px-4">
@@ -897,6 +1044,20 @@ const Home = () => {
           .xs\\:inline {
             display: inline;
           }
+        }
+
+        .line-clamp-1 {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
       `}</style>
     </>

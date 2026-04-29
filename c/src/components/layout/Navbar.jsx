@@ -120,7 +120,8 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
 
             <Link to="/dashboard" className="flex items-center gap-1">
               <img src={logoSvg} alt="OCC Logo" className="h-8 w-auto" />
-              <span className="text-2xl font-black whitespace-nowrap">
+              {/* Full brand name - hidden on mobile */}
+              <span className="hidden sm:inline text-2xl font-black whitespace-nowrap">
                 <span className="text-blue-600">OCC</span>
                 <span className="inline-flex items-baseline">
                   <span
@@ -138,6 +139,24 @@ const Navbar = ({ toggleSidebar, sidebarOpen }) => {
                   </span>
                   <span className="text-gray-900">Library</span>
                 </span>
+              </span>
+              {/* Short brand name - visible only on mobile */}
+              <span className="sm:hidden text-xl font-black text-blue-600">
+                OCC
+                <span
+                  className="font-black text-gray-900"
+                  style={{
+                    fontStyle: "italic",
+                    fontWeight: 900,
+                    fontSize: "1.1em",
+                    lineHeight: 1,
+                    letterSpacing: "-0.03em",
+                    marginRight: "1px",
+                  }}
+                >
+                  e
+                </span>
+                <span className="text-gray-900">Lib</span>
               </span>
             </Link>
           </div>
