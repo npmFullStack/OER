@@ -21,6 +21,8 @@ import AddProgram from "@/pages/AddProgram";
 import AllResources from "@/pages/AllResources";
 import EbooksByProgram from "@/pages/EbooksByProgram";
 import ProgramDetails from "@/pages/ProgramDetails";
+import StudentResearch from "@/pages/StudentResearch";
+import UploadStudentResearch from "@/pages/UploadStudentResearch";
 
 const App = () => {
   return (
@@ -80,6 +82,13 @@ const App = () => {
           <Route path="/books" element={<Books />} />
           <Route path="/books/new" element={<NewBook />} />
           <Route path="/books/import" element={<ImportBooks />} />
+
+          {/* Student Research Routes */}
+          <Route path="/student-research" element={<StudentResearch />} />
+          <Route
+            path="/student-research/upload"
+            element={<UploadStudentResearch />}
+          />
 
           <Route path="/ebook-record/:id" element={<EbookRecord />} />
           <Route path="/programs" element={<Programs />} />

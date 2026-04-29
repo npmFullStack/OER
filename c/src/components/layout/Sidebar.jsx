@@ -12,6 +12,8 @@ import {
   GraduationCap,
   Library,
   Users,
+  FileText,
+  PlusCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -48,9 +50,9 @@ const Sidebar = ({ isOpen, onClose }) => {
   const getAllMenuItems = () => {
     const items = [
       { path: "/dashboard", name: "Dashboard", icon: LayoutDashboard },
-      { path: "/upload", name: "Upload eBook", icon: Upload },
       { path: "/my-ebooks", name: "My eBooks", icon: BookOpen },
       { path: "/books", name: "My Books", icon: Library },
+      { path: "/student-research", name: "Student Research", icon: FileText },
       { path: "/programs", name: "Programs", icon: GraduationCap },
       { path: "/settings", name: "Settings", icon: Settings },
     ];
