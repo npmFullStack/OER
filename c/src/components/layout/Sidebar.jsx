@@ -16,11 +16,13 @@ import {
   PlusCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import WarningModal from "@/components/modals/WarningModal";
 
 const Sidebar = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [isMobile, setIsMobile] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -81,12 +83,21 @@ const Sidebar = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleConfirmLogout = async () => {
     await logout();
+    setShowLogoutModal(false);
     navigate("/login");
     if (isMobile && onClose) {
       onClose();
     }
+  };
+
+  const handleCancelLogout = () => {
+    setShowLogoutModal(false);
   };
 
   // Get user initials for avatar
@@ -166,7 +177,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               </div>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >
@@ -182,7 +193,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               </span>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Logout"
             >
@@ -215,19 +226,45 @@ const Sidebar = ({ isOpen, onClose }) => {
         >
           {sidebarContent}
         </aside>
+
+        {/* Logout Warning Modal */}
+        <WarningModal
+          isOpen={showLogoutModal}
+          onClose={handleCancelLogout}
+          onConfirm={handleConfirmLogout}
+          title="Confirm Logout"
+          message="Are you sure you want to logout? You will need to login again to access your account."
+          confirmText="Logout"
+          cancelText="Cancel"
+          isDanger={true}
+        />
       </>
     );
   }
 
   // Desktop: Persistent sidebar
   return (
-    <aside
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-all duration-300 z-40 flex flex-col ${
-        isOpen ? "w-64" : "w-20"
-      }`}
-    >
-      {sidebarContent}
-    </aside>
+    <>
+      <aside
+        className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-[#F5F5F5] transition-all duration-300 z-40 flex flex-col ${
+          isOpen ? "w-64" : "w-20"
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Logout Warning Modal */}
+      <WarningModal
+        isOpen={showLogoutModal}
+        onClose={handleCancelLogout}
+        onConfirm={handleConfirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to logout? You will need to login again to access your account."
+        confirmText="Logout"
+        cancelText="Cancel"
+        isDanger={true}
+      />
+    </>
   );
 };
 

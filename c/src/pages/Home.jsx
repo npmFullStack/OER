@@ -737,7 +737,7 @@ const Home = () => {
       {/* Stats Section */}
       <section className="py-8 md:py-12 bg-bgColor">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-3 gap-3 md:gap-6 max-w-xl mx-auto">
+          <div className="grid grid-cols-4 gap-3 md:gap-9 max-w-xl mx-auto">
             <div className="text-center">
               <div className="text-xl md:text-3xl font-bold text-primary mb-0.5 md:mb-1">
                 500+
@@ -746,20 +746,29 @@ const Home = () => {
                 eBooks Available
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-xl md:text-3xl font-bold text-primary mb-0.5 md:mb-1">
-                6
-              </div>
-              <div className="text-xs md:text-sm text-textSecondary">
-                Programs
-              </div>
-            </div>
+
             <div className="text-center">
               <div className="text-xl md:text-3xl font-bold text-primary mb-0.5 md:mb-1">
                 3000+
               </div>
               <div className="text-xs md:text-sm text-textSecondary">
                 Books Available
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-3xl font-bold text-primary mb-0.5 md:mb-1">
+                400+
+              </div>
+              <div className="text-xs md:text-sm text-textSecondary">
+                Student Research Available
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl md:text-3xl font-bold text-primary mb-0.5 md:mb-1">
+                6
+              </div>
+              <div className="text-xs md:text-sm text-textSecondary">
+                Programs
               </div>
             </div>
           </div>
@@ -913,10 +922,10 @@ const Home = () => {
               </p>
             </div>
             <Link
-              to="/student-research"
+              to="/browse?tab=student-research"
               className="text-primary hover:text-primaryDark font-semibold flex items-center gap-2 transition-colors text-sm md:text-base"
             >
-              Browse All Research <ArrowRight className="w-4 h-4" />
+              View All Student Research <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
@@ -928,7 +937,7 @@ const Home = () => {
 
           <div className="mt-6 text-center">
             <Link
-              to="/student-research"
+              to="/browse?tab=student-research"
               className="inline-flex items-center gap-2 text-primary hover:text-primaryDark font-medium text-sm"
             >
               View all student research papers →
