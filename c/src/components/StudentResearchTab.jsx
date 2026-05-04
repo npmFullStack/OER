@@ -1,6 +1,14 @@
 // src/components/StudentResearchTab.jsx
 import React, { useState, useEffect } from "react";
-import { Search, Filter, X, FileText, Download, Eye } from "lucide-react";
+import {
+  Search,
+  Filter,
+  X,
+  FileText,
+  Download,
+  Eye,
+  Library,
+} from "lucide-react";
 import Pagination from "./Pagination";
 
 // Mock student research data (Capstone, Business Research, FS, AR, ET)
@@ -13,7 +21,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 234,
     views: 567,
-    file_url: "#",
+    file_url: "/files/research-1.pdf",
   },
   {
     id: 2,
@@ -23,7 +31,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 189,
     views: 423,
-    file_url: "#",
+    file_url: null,
   },
   {
     id: 3,
@@ -34,7 +42,7 @@ const MOCK_RESEARCH = [
     year: 2023,
     downloads: 156,
     views: 342,
-    file_url: "#",
+    file_url: "/files/research-3.pdf",
   },
   {
     id: 4,
@@ -45,7 +53,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 278,
     views: 589,
-    file_url: "#",
+    file_url: null,
   },
   {
     id: 5,
@@ -56,7 +64,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 198,
     views: 456,
-    file_url: "#",
+    file_url: "/files/research-5.pdf",
   },
   {
     id: 6,
@@ -67,7 +75,7 @@ const MOCK_RESEARCH = [
     year: 2023,
     downloads: 145,
     views: 321,
-    file_url: "#",
+    file_url: null,
   },
   {
     id: 7,
@@ -78,7 +86,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 167,
     views: 389,
-    file_url: "#",
+    file_url: "/files/research-7.pdf",
   },
   {
     id: 8,
@@ -88,7 +96,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 312,
     views: 678,
-    file_url: "#",
+    file_url: "/files/research-8.pdf",
   },
   {
     id: 9,
@@ -99,7 +107,7 @@ const MOCK_RESEARCH = [
     year: 2023,
     downloads: 223,
     views: 534,
-    file_url: "#",
+    file_url: null,
   },
   {
     id: 10,
@@ -109,7 +117,7 @@ const MOCK_RESEARCH = [
     year: 2024,
     downloads: 178,
     views: 412,
-    file_url: "#",
+    file_url: "/files/research-10.pdf",
   },
 ];
 
@@ -357,6 +365,7 @@ const StudentResearchTab = () => {
       <div className="space-y-4">
         {currentItems.map((item) => {
           const categoryBadgeClass = getCategoryColor(item.category);
+          const hasFile = !!item.file_url;
           return (
             <div
               key={item.id}
@@ -373,6 +382,10 @@ const StudentResearchTab = () => {
                       </span>
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                         {item.year}
+                      </span>
+                      <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Library className="w-3 h-3" />
+                        OCC Library
                       </span>
                     </div>
                     <h3 className="font-semibold text-textPrimary mb-2 text-base md:text-lg">
@@ -394,28 +407,34 @@ const StudentResearchTab = () => {
                         {formatNumber(item.downloads)}
                       </span>
                     </div>
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleView(item.title);
-                        }}
-                        className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(item.title);
-                        }}
-                        className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primaryDark transition-colors flex items-center gap-1"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Download
-                      </button>
-                    </div>
+                    {hasFile ? (
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleView(item.title);
+                          }}
+                          className="px-3 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          View
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownload(item.title);
+                          }}
+                          className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primaryDark transition-colors flex items-center gap-1"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic mt-2">
+                        File not available
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

@@ -127,10 +127,11 @@ const UploadStudentResearch = () => {
       toast.error("Please enter all author names or remove empty fields");
       return;
     }
-    if (!file) {
-      toast.error("Please upload a PDF file");
-      return;
-    }
+    // File is now optional - removed the file check
+    // if (!file) {
+    //   toast.error("Please upload a PDF file");
+    //   return;
+    // }
 
     setLoading(true);
 
@@ -144,14 +145,18 @@ const UploadStudentResearch = () => {
         categoryId: formData.categoryId,
         year: new Date().getFullYear(),
       },
-      file,
+      file, // Can be null if no file uploaded
     );
 
     if (error) {
       toast.error(error);
       setLoading(false);
     } else {
-      toast.success("Research paper uploaded successfully!");
+      toast.success(
+        file
+          ? "Research paper uploaded successfully!"
+          : "Research details saved successfully!",
+      );
       setTimeout(() => {
         navigate("/student-research");
       }, 1000);
@@ -192,7 +197,7 @@ const UploadStudentResearch = () => {
         {/* Left Column - Form */}
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* File Upload Area */}
+            {/* File Upload Area - Now Optional */}
             <div className="bg-white rounded-lg border-2 border-dashed border-gray-200 p-8 hover:border-blue-400 transition-colors">
               {!file ? (
                 <div className="text-center">
@@ -202,13 +207,17 @@ const UploadStudentResearch = () => {
                     </div>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    Upload PDF File
+                    Upload PDF File{" "}
+                    <span className="text-sm font-normal text-gray-500">
+                      (Optional)
+                    </span>
                   </h3>
                   <p className="text-sm text-gray-500 mb-4">
                     Drag and drop your PDF here, or click to browse
                   </p>
                   <p className="text-xs text-gray-400 mb-4">
-                    Maximum file size: 50MB • PDF format only
+                    Maximum file size: 50MB • PDF format only • You can submit
+                    without a file
                   </p>
                   <label className="inline-block">
                     <input
@@ -247,6 +256,10 @@ const UploadStudentResearch = () => {
                       <X className="w-5 h-5 text-gray-500" />
                     </button>
                   </div>
+                  <p className="text-xs text-green-600 text-center">
+                    ✓ File selected. You can upload another file or proceed
+                    without one.
+                  </p>
                 </div>
               )}
 
@@ -382,8 +395,10 @@ const UploadStudentResearch = () => {
                     <Loader className="w-5 h-5 animate-spin" />
                     Uploading...
                   </>
+                ) : file ? (
+                  "Upload Research with File"
                 ) : (
-                  "Upload Research"
+                  "Save Research Details"
                 )}
               </button>
               <button
@@ -422,18 +437,18 @@ const UploadStudentResearch = () => {
               {[
                 {
                   n: 1,
-                  title: "Select PDF File",
-                  desc: "Choose a PDF file from your computer (max 50MB)",
+                  title: "Select PDF File (Optional)",
+                  desc: "Choose a PDF file from your computer (max 50MB) - not required",
                 },
                 {
                   n: 2,
                   title: "Fill Research Details",
-                  desc: "Add title, authors, and select category",
+                  desc: "Add title, authors, and select category (required)",
                 },
                 {
                   n: 3,
-                  title: "Upload & Confirm",
-                  desc: "Click upload and wait for confirmation",
+                  title: "Save",
+                  desc: "Click save to add the research to the library",
                 },
               ].map(({ n, title, desc }) => (
                 <div key={n} className="flex gap-3">
@@ -462,6 +477,12 @@ const UploadStudentResearch = () => {
                   <span className="text-blue-600">•</span>
                   <span>
                     Select the appropriate category for easy filtering
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600">•</span>
+                  <span>
+                    You can save research without a PDF file and add it later
                   </span>
                 </li>
               </ul>

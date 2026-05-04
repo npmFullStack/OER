@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Layers,
   Loader,
+  FileUp,
 } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import WarningModal from "@/components/modals/WarningModal";
@@ -196,6 +197,11 @@ const StudentResearch = () => {
     navigate("/student-research/upload");
   };
 
+  const handleImportResearch = () => {
+    setIsAddDropdownOpen(false);
+    navigate("/student-research/import");
+  };
+
   const handleManageCategories = () => {
     setIsAddDropdownOpen(false);
     setIsCategoryModalOpen(true);
@@ -258,40 +264,51 @@ const StudentResearch = () => {
           </p>
         </div>
 
-        {/* Add Button with Dropdown */}
-        <div className="mt-4 sm:mt-0 relative add-dropdown">
+        <div className="mt-4 sm:mt-0 flex gap-3">
+          {/* Import Button */}
           <button
-            onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+            onClick={handleImportResearch}
+            className="bg-white border border-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors inline-flex items-center gap-2"
           >
-            <Plus className="w-5 h-5" />
-            New
-            <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${
-                isAddDropdownOpen ? "rotate-180" : ""
-              }`}
-            />
+            <FileUp className="w-5 h-5" />
+            Import
           </button>
 
-          {/* Dropdown Menu */}
-          {isAddDropdownOpen && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-              <button
-                onClick={handleUploadResearch}
-                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
-              >
-                <FileText className="w-4 h-4 text-gray-400" />
-                Upload Student Research
-              </button>
-              <button
-                onClick={handleManageCategories}
-                className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-t border-gray-100"
-              >
-                <Layers className="w-4 h-4 text-gray-400" />
-                Manage Categories
-              </button>
-            </div>
-          )}
+          {/* Add Button with Dropdown */}
+          <div className="relative add-dropdown">
+            <button
+              onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              New
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  isAddDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isAddDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
+                <button
+                  onClick={handleUploadResearch}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                >
+                  <FileText className="w-4 h-4 text-gray-400" />
+                  Upload Student Research
+                </button>
+                <button
+                  onClick={handleManageCategories}
+                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors border-t border-gray-100"
+                >
+                  <Layers className="w-4 h-4 text-gray-400" />
+                  Manage Categories
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -427,38 +444,6 @@ const StudentResearch = () => {
               ? "Try adjusting your filters"
               : "Start by uploading your first student research paper"}
           </p>
-          <div className="relative add-dropdown inline-block">
-            <button
-              onClick={() => setIsAddDropdownOpen(!isAddDropdownOpen)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Add New Record
-              <ChevronDown
-                className={`w-4 h-4 transition-transform duration-200 ${
-                  isAddDropdownOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            {isAddDropdownOpen && (
-              <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20">
-                <button
-                  onClick={handleUploadResearch}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
-                >
-                  <FileText className="w-4 h-4 text-gray-400" />
-                  Upload Student Research
-                </button>
-                <button
-                  onClick={handleManageCategories}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 border-t border-gray-100"
-                >
-                  <Layers className="w-4 h-4 text-gray-400" />
-                  Manage Categories
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       ) : (
         <>

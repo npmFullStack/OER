@@ -25,6 +25,7 @@ import ProgramDetails from "@/pages/ProgramDetails";
 import StudentResearch from "@/pages/StudentResearch";
 import UploadStudentResearch from "@/pages/UploadStudentResearch";
 import EditStudentResearch from "@/pages/EditStudentResearch";
+import ImportStudentResearch from "@/pages/ImportStudentResearch";
 
 const App = () => {
   return (
@@ -95,6 +96,10 @@ const App = () => {
           <Route
             path="/student-research/edit/:id"
             element={<EditStudentResearch />}
+          />
+          <Route
+            path="/student-research/import"
+            element={<ImportStudentResearch />}
           />
 
           <Route path="/ebook-record/:id" element={<EbookRecord />} />

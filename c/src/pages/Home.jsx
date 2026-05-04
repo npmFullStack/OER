@@ -161,6 +161,8 @@ const StudentResearchCard = ({ research }) => {
     return String(n);
   };
 
+  const hasFile = !!research.file_url;
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-5">
@@ -174,6 +176,11 @@ const StudentResearchCard = ({ research }) => {
               </span>
               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                 {research.year}
+              </span>
+              {/* Always show OCC Library badge */}
+              <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Library className="w-3 h-3" />
+                OCC Library
               </span>
             </div>
             <h3 className="font-semibold text-textPrimary mb-2 text-base line-clamp-2">
@@ -194,13 +201,29 @@ const StudentResearchCard = ({ research }) => {
                 {formatNumber(research.downloads)}
               </span>
             </div>
-            <Link
-              to={`/student-research/${research.id}`}
-              className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primaryDark transition-colors flex items-center gap-1"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              View Research
-            </Link>
+            {hasFile ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/student-research/${research.id}`}
+                  className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primaryDark transition-colors flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  View
+                </Link>
+                <a
+                  href={research.file_url}
+                  download
+                  className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </a>
+              </div>
+            ) : (
+              <span className="text-xs text-gray-400 italic">
+                File not available
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -397,6 +420,7 @@ const Home = () => {
       year: 2024,
       downloads: 234,
       views: 567,
+      file_url: "/files/research-1.pdf",
     },
     {
       id: 2,
@@ -407,6 +431,7 @@ const Home = () => {
       year: 2023,
       downloads: 156,
       views: 342,
+      file_url: null,
     },
     {
       id: 3,
@@ -416,6 +441,7 @@ const Home = () => {
       year: 2024,
       downloads: 312,
       views: 678,
+      file_url: "/files/research-3.pdf",
     },
     {
       id: 4,
@@ -426,6 +452,7 @@ const Home = () => {
       year: 2023,
       downloads: 145,
       views: 321,
+      file_url: null,
     },
   ]);
 
@@ -462,6 +489,7 @@ const Home = () => {
     { value: "all", label: "All Resources" },
     { value: "book", label: "Library Books" },
     { value: "ebook", label: "eBooks" },
+    { value: "research", label: "Student Research" },
   ];
 
   const programOptions = [
@@ -582,8 +610,8 @@ const Home = () => {
             </h1>
 
             <p className="text-sm sm:text-base md:text-lg text-white/80 mb-6 md:mb-10 px-4">
-              Search books available at our library and eBooks you can read or
-              download — all in one place.
+              Search library books, eBooks, and student research — all available
+              at OCC Library, all in one place.
             </p>
 
             {/* Search Bar with Filter Button */}
@@ -596,7 +624,7 @@ const Home = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search books, eBooks, authors, topics..."
+                  placeholder="Search books, eBooks, research, authors, topics..."
                   className="flex-1 px-3 sm:px-4 py-3 sm:py-4 text-sm text-gray-900 placeholder-gray-400 bg-transparent focus:outline-none min-w-0"
                 />
 
@@ -713,7 +741,11 @@ const Home = () => {
                 <div className="flex gap-2 mt-3 justify-center flex-wrap">
                   {resourceType !== "all" && (
                     <span className="text-xs bg-white/15 text-white/90 px-3 py-1 rounded-full border border-white/20">
-                      {resourceType === "book" ? "Library Books" : "eBooks"}
+                      {resourceType === "book"
+                        ? "Library Books"
+                        : resourceType === "ebook"
+                          ? "eBooks"
+                          : "Student Research"}
                     </span>
                   )}
                   {selectedProgram && (
