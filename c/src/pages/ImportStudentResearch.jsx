@@ -145,10 +145,16 @@ const ImportStudentResearch = () => {
   };
 
   const downloadTemplate = () => {
-    // Create CSV template with all required columns
-    const headers = ["title", "authors", "category", "year", "abstract"].join(
-      ",",
-    );
+    // Helper function to escape CSV fields
+    const escapeCSV = (field) => {
+      if (field.includes(",") || field.includes('"') || field.includes("\n")) {
+        const escaped = field.replace(/"/g, '""');
+        return `"${escaped}"`;
+      }
+      return field;
+    };
+
+    const headers = ["title", "authors", "category", "year"];
 
     const sampleRows = [
       [
@@ -156,25 +162,27 @@ const ImportStudentResearch = () => {
         "Dela Cruz, J., Santos, M.",
         "CAPSTONE",
         "2024",
-        "This study evaluates the usability of e-learning platforms in remote education settings.",
-      ].join(","),
+      ],
       [
         "Financial Management Practices of Small Enterprises",
         "Reyes, A., Gomez, L.",
         "BUSINESS RESEARCH",
         "2023",
-        "An analysis of financial management practices among small enterprises.",
-      ].join(","),
+      ],
       [
         "Impact of Social Media on Student Academic Performance",
         "Mendoza, C.",
         "ACTION RESEARCH",
         "2024",
-        "This research examines the relationship between social media usage and academic performance.",
-      ].join(","),
+      ],
     ];
 
-    const csvContent = `${headers}\n${sampleRows.join("\n")}`;
+    const csvRows = [
+      headers.join(","),
+      ...sampleRows.map((row) => row.map((cell) => escapeCSV(cell)).join(",")),
+    ];
+
+    const csvContent = csvRows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
