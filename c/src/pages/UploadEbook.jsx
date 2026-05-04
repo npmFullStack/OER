@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   Upload,
   FileText,
   X,
@@ -14,6 +15,7 @@ import {
 import instruction from "@/assets/images/instruction.png";
 import * as pdfjsLib from "pdfjs-dist";
 import CustomSelect from "../components/Select";
+import toast from "react-hot-toast";
 
 const PROGRAMS = [
   { value: 1, label: "BSIT - Bachelor of Science in Information Technology" },
@@ -173,7 +175,7 @@ const UploadEbook = () => {
     e.preventDefault();
 
     // Validate required fields
-    if (!formData.title) {
+    if (!formData.title.trim()) {
       toast.error("Please enter a title");
       return;
     }
@@ -190,7 +192,8 @@ const UploadEbook = () => {
     // Simulate upload
     setTimeout(() => {
       setLoading(false);
-      navigate("/ebooks");
+      toast.success("eBook uploaded successfully!");
+      navigate("/my-ebooks");
     }, 1000);
   };
 
@@ -200,19 +203,27 @@ const UploadEbook = () => {
 
   return (
     <div className="bg-white rounded-xl p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Upload eBook</h1>
-        <p className="mt-2 text-gray-600">
-          Add new eBooks to the OCC Digital Library
-        </p>
+      {/* Header with back button and title - Matching other pages */}
+      <div className="mb-6 flex items-center gap-4">
+        <button
+          onClick={() => navigate("/my-ebooks")}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ArrowLeft className="w-6 h-6 text-gray-600" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Upload eBook</h1>
+          <p className="mt-2 text-gray-600">
+            Add new eBooks to the OCC Digital Library
+          </p>
+        </div>
       </div>
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Form */}
-        <div className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="lg:col-span-2 space-y-6">
+          <form onSubmit={handleSubmit}>
             {/* File Upload Area */}
             <div className="bg-white rounded-lg border-2 border-dashed border-gray-200 p-8 hover:border-blue-400 transition-colors">
               {!file ? (
@@ -354,7 +365,7 @@ const UploadEbook = () => {
 
                 {/* Program Preview */}
                 {selectedProgramId && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700 mb-2">
                       Selected Program Preview:
                     </p>
@@ -386,6 +397,7 @@ const UploadEbook = () => {
             <div className="flex gap-4">
               <button
                 type="submit"
+                onClick={handleSubmit}
                 disabled={loading || extractingCover}
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
@@ -410,7 +422,7 @@ const UploadEbook = () => {
               Upload Instructions
             </h3>
 
-            <div className="mb-2 rounded-lg overflow-hidden bg-gray-50 p-4">
+            <div className="mb-4 rounded-lg overflow-hidden bg-gray-50 p-4">
               <img
                 src={instruction}
                 alt="Upload instructions"

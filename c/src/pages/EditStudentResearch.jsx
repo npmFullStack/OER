@@ -45,45 +45,53 @@ const EditStudentResearch = () => {
   // Load research data if not passed via state
   useEffect(() => {
     const loadData = async () => {
-      if (existingResearch) {
-        // Use data from state
-        setFormData({
-          title: existingResearch.title || "",
-          authors: existingResearch.authors?.length
-            ? existingResearch.authors
-            : [""],
-          categoryId: existingResearch.category?.id || "",
-          year: existingResearch.year || new Date().getFullYear(),
-        });
-        setExistingFile({
-          name: existingResearch.file_name,
-          size: existingResearch.file_size,
-          url: existingResearch.file_url,
-          storagePath: existingResearch.file_storage_path,
-        });
-        setLoadingData(false);
-      } else if (id) {
-        // Fetch from API
-        const { research, error } =
-          await studentResearchService.getResearchById(id);
-        if (error) {
-          toast.error("Failed to load research data");
-          navigate("/student-research");
-        } else if (research) {
+      try {
+        if (existingResearch) {
+          // Use data from state
           setFormData({
-            title: research.title || "",
-            authors: research.authors?.length ? research.authors : [""],
-            categoryId: research.category?.id || "",
-            year: research.year || new Date().getFullYear(),
+            title: existingResearch.title || "",
+            authors: existingResearch.authors?.length
+              ? existingResearch.authors
+              : [""],
+            categoryId: existingResearch.category?.id || "",
+            year: existingResearch.year || new Date().getFullYear(),
           });
           setExistingFile({
-            name: research.file_name,
-            size: research.file_size,
-            url: research.file_url,
-            storagePath: research.file_storage_path,
+            name: existingResearch.file_name,
+            size: existingResearch.file_size,
+            url: existingResearch.file_url,
+            storagePath: existingResearch.file_storage_path,
           });
+          setLoadingData(false);
+        } else if (id) {
+          // Fetch from API
+          const { research, error } =
+            await studentResearchService.getResearchById(id);
+          if (error) {
+            toast.error("Failed to load research data");
+            navigate("/student-research");
+            return;
+          }
+          if (research) {
+            setFormData({
+              title: research.title || "",
+              authors: research.authors?.length ? research.authors : [""],
+              categoryId: research.category?.id || "",
+              year: research.year || new Date().getFullYear(),
+            });
+            setExistingFile({
+              name: research.file_name,
+              size: research.file_size,
+              url: research.file_url,
+              storagePath: research.file_storage_path,
+            });
+          }
+          setLoadingData(false);
         }
-        setLoadingData(false);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Failed to load research data");
+        navigate("/student-research");
       }
     };
 
@@ -209,23 +217,38 @@ const EditStudentResearch = () => {
       toast.error("Please select a category");
       return;
     }
-    if (formData.authors.some((author) => !author.trim())) {
-      toast.error("Please enter all author names or remove empty fields");
+    // Filter out empty authors and check if there's at least one valid author
+    const filteredAuthors = formData.authors.filter((author) => author.trim());
+    if (filteredAuthors.length === 0) {
+      toast.error("Please enter at least one author");
       return;
     }
 
     setLoading(true);
 
-    // Filter out empty authors
-    const filteredAuthors = formData.authors.filter((author) => author.trim());
+    // Prepare updates - only include fields that have changed
+    const updates = {};
 
-    // Prepare updates
-    const updates = {
-      title: formData.title.trim(),
-      authors: filteredAuthors,
-      categoryId: formData.categoryId,
-      year: formData.year,
-    };
+    if (formData.title.trim() !== (existingResearch?.title || "")) {
+      updates.title = formData.title.trim();
+    }
+
+    if (
+      JSON.stringify(filteredAuthors) !==
+      JSON.stringify(existingResearch?.authors || [])
+    ) {
+      updates.authors = filteredAuthors;
+    }
+
+    if (formData.categoryId !== (existingResearch?.category?.id || "")) {
+      updates.categoryId = formData.categoryId;
+    }
+
+    if (
+      formData.year !== (existingResearch?.year || new Date().getFullYear())
+    ) {
+      updates.year = formData.year;
+    }
 
     // If removing current file and no new file, set file fields to null
     if (removeCurrentFile && !file) {
@@ -233,6 +256,13 @@ const EditStudentResearch = () => {
       updates.file_name = null;
       updates.file_size = null;
       updates.file_storage_path = null;
+    }
+
+    // If there are no updates and no file changes, show message
+    if (Object.keys(updates).length === 0 && !file && !removeCurrentFile) {
+      toast.error("No changes to save");
+      setLoading(false);
+      return;
     }
 
     const { research, error } = await studentResearchService.updateResearch(

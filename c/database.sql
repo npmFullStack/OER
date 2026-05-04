@@ -1,7 +1,7 @@
 -- ============================================
 -- COMPLETE DATABASE SETUP FOR OCC eLIBRARY
--- WITH EMAIL NOTIFICATIONS AND PROGRAMS
--- AND STUDENT RESEARCH MANAGEMENT
+-- WITH PROGRAMS AND STUDENT RESEARCH MANAGEMENT
+-- UPDATED VERSION
 -- ============================================
 
 -- Enable required extensions
@@ -13,7 +13,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================
 DROP TABLE IF EXISTS public.activity_logs CASCADE;
 DROP TABLE IF EXISTS public.user_sessions CASCADE;
-DROP TABLE IF EXISTS public.pending_invites CASCADE;
 DROP TABLE IF EXISTS public.student_research CASCADE;
 DROP TABLE IF EXISTS public.student_research_category CASCADE;
 DROP TABLE IF EXISTS public.programs CASCADE;
@@ -120,21 +119,6 @@ CREATE TABLE public.activity_logs (
 );
 
 -- ============================================
--- CREATE PENDING INVITES TABLE FOR NEW ADMINS
--- ============================================
-CREATE TABLE public.pending_invites (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    firstname VARCHAR(100) NOT NULL,
-    lastname VARCHAR(100) NOT NULL,
-    temp_password TEXT NOT NULL,
-    token TEXT UNIQUE NOT NULL,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_by UUID REFERENCES public.users(id)
-);
-
--- ============================================
 -- CREATE INDEXES
 -- ============================================
 CREATE INDEX idx_users_email ON public.users(email);
@@ -143,8 +127,6 @@ CREATE INDEX idx_user_sessions_user_id ON public.user_sessions(user_id);
 CREATE INDEX idx_user_sessions_token ON public.user_sessions(token);
 CREATE INDEX idx_activity_logs_user_id ON public.activity_logs(user_id);
 CREATE INDEX idx_activity_logs_created_at ON public.activity_logs(created_at);
-CREATE INDEX idx_pending_invites_email ON public.pending_invites(email);
-CREATE INDEX idx_pending_invites_token ON public.pending_invites(token);
 CREATE INDEX idx_programs_name ON public.programs(name);
 CREATE INDEX idx_programs_acronym ON public.programs(acronym);
 CREATE INDEX idx_programs_is_active ON public.programs(is_active);
@@ -157,6 +139,8 @@ CREATE INDEX idx_student_research_status ON public.student_research(status);
 CREATE INDEX idx_student_research_created_at ON public.student_research(created_at);
 CREATE INDEX idx_student_research_views ON public.student_research(views);
 CREATE INDEX idx_student_research_downloads ON public.student_research(downloads);
+
+-- Indexes for student research category
 CREATE INDEX idx_student_research_category_name ON public.student_research_category(name);
 CREATE INDEX idx_student_research_category_is_active ON public.student_research_category(is_active);
 
@@ -238,91 +222,6 @@ CREATE TRIGGER hash_password_on_insert
     EXECUTE FUNCTION hash_password_trigger();
 
 -- ============================================
--- FUNCTION TO CREATE USER FROM INVITE
--- ============================================
-CREATE OR REPLACE FUNCTION accept_invite(
-    p_token TEXT,
-    p_new_password TEXT
-)
-RETURNS TABLE(user_id UUID, user_email TEXT) AS $$
-DECLARE
-    v_invite RECORD;
-    v_user_id UUID;
-BEGIN
-    -- Get the invite
-    SELECT * INTO v_invite 
-    FROM public.pending_invites 
-    WHERE token = p_token AND expires_at > NOW();
-    
-    IF v_invite IS NULL THEN
-        RAISE EXCEPTION 'Invalid or expired invite token';
-    END IF;
-    
-    -- Check if user already exists
-    IF EXISTS (SELECT 1 FROM public.users WHERE email = v_invite.email) THEN
-        DELETE FROM public.pending_invites WHERE token = p_token;
-        RAISE EXCEPTION 'User already exists';
-    END IF;
-    
-    -- Create the user
-    INSERT INTO public.users (firstname, lastname, email, password_hash, role, is_active)
-    VALUES (
-        v_invite.firstname,
-        v_invite.lastname,
-        v_invite.email,
-        p_new_password,
-        'admin',
-        true
-    )
-    RETURNING id, email INTO v_user_id, user_email;
-    
-    -- Delete the invite
-    DELETE FROM public.pending_invites WHERE token = p_token;
-    
-    -- Return the user info
-    user_id := v_user_id;
-    RETURN NEXT;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================
--- FUNCTION TO CREATE INVITE (by superadmin)
--- ============================================
-CREATE OR REPLACE FUNCTION create_admin_invite(
-    p_firstname TEXT,
-    p_lastname TEXT,
-    p_email TEXT,
-    p_created_by UUID
-)
-RETURNS TABLE(invite_token TEXT, temp_password TEXT) AS $$
-DECLARE
-    v_token TEXT;
-    v_temp_password TEXT;
-BEGIN
-    -- Generate random token and password
-    v_token := encode(gen_random_bytes(32), 'hex');
-    v_temp_password := substring(md5(random()::text) from 1 for 10);
-    
-    -- Check if user already exists
-    IF EXISTS (SELECT 1 FROM public.users WHERE email = p_email) THEN
-        RAISE EXCEPTION 'User with this email already exists';
-    END IF;
-    
-    -- Delete any existing invite for this email
-    DELETE FROM public.pending_invites WHERE email = p_email;
-    
-    -- Create the invite
-    INSERT INTO public.pending_invites (email, firstname, lastname, temp_password, token, expires_at, created_by)
-    VALUES (p_email, p_firstname, p_lastname, v_temp_password, v_token, NOW() + INTERVAL '7 days', p_created_by)
-    RETURNING token, temp_password INTO v_token, v_temp_password;
-    
-    invite_token := v_token;
-    temp_password := v_temp_password;
-    RETURN NEXT;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================
 -- FUNCTIONS FOR INCREMENTING RESEARCH COUNTERS
 -- ============================================
 
@@ -356,7 +255,7 @@ INSERT INTO public.student_research_category (name, description, color, display_
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================
--- SEEDER: INSERT SUPERADMIN USER (FIXED)
+-- SEEDER: INSERT SUPERADMIN USER
 -- ============================================
 DO $$
 DECLARE
@@ -391,30 +290,45 @@ BEGIN
 END $$;
 
 -- ============================================
+-- SEEDER: INSERT DEFAULT PROGRAMS (Optional)
+-- ============================================
+INSERT INTO public.programs (name, acronym, color, total_books, total_ebooks, is_active) VALUES
+('Computer Science', 'CS', '#3b82f6', 0, 0, true),
+('Information Technology', 'IT', '#10b981', 0, 0, true),
+('Business Administration', 'BA', '#f59e0b', 0, 0, true),
+('Accountancy', 'ACT', '#ef4444', 0, 0, true),
+('Education', 'ED', '#8b5cf6', 0, 0, true)
+ON CONFLICT (acronym) DO NOTHING;
+
+-- ============================================
 -- VERIFY SEEDER (Check if everything was created correctly)
 -- ============================================
 
--- Check users table
-SELECT id, firstname, lastname, email, role, is_active, 
-       CASE WHEN password_hash LIKE '$2a$%' OR password_hash LIKE '$2b$%' 
-            THEN '✓ Properly hashed' 
-            ELSE '✗ Not properly hashed' 
-       END as password_status
-FROM public.users 
-WHERE email = 'admin@occ.edu';
-
--- Check programs table
-SELECT id, name, acronym, color, total_books, total_ebooks, is_active 
-FROM public.programs 
-ORDER BY created_at;
-
--- Check student research categories
-SELECT id, name, description, color, display_order, is_active
-FROM public.student_research_category
-ORDER BY display_order;
-
--- Test password verification (should return true)
-SELECT verify_password('admin@occ.edu', 'password') as login_test_working;
+DO $$
+DECLARE
+    user_exists BOOLEAN;
+    cat_count INTEGER;
+BEGIN
+    -- Check users table
+    SELECT EXISTS (SELECT 1 FROM public.users WHERE email = 'admin@occ.edu') INTO user_exists;
+    
+    IF user_exists THEN
+        RAISE NOTICE '✓ Superadmin user created successfully';
+    ELSE
+        RAISE NOTICE '✗ Superadmin user creation failed';
+    END IF;
+    
+    -- Check categories count
+    SELECT COUNT(*) INTO cat_count FROM public.student_research_category;
+    RAISE NOTICE '✓ % student research categories created', cat_count;
+    
+    -- Test password verification (should return true)
+    IF verify_password('admin@occ.edu', 'password') THEN
+        RAISE NOTICE '✓ Password verification working correctly';
+    ELSE
+        RAISE NOTICE '✗ Password verification failed';
+    END IF;
+END $$;
 
 -- ============================================
 -- DISABLE RLS TEMPORARILY FOR DEVELOPMENT
@@ -422,7 +336,6 @@ SELECT verify_password('admin@occ.edu', 'password') as login_test_working;
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_sessions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activity_logs DISABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pending_invites DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.programs DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.student_research DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.student_research_category DISABLE ROW LEVEL SECURITY;
@@ -446,9 +359,17 @@ BEGIN
     RAISE NOTICE '  - ACTION RESEARCH';
     RAISE NOTICE '  - EXPERIMENTAL THESIS';
     RAISE NOTICE '==========================================';
+    RAISE NOTICE 'Default Programs Added:';
+    RAISE NOTICE '  - Computer Science (CS)';
+    RAISE NOTICE '  - Information Technology (IT)';
+    RAISE NOTICE '  - Business Administration (BA)';
+    RAISE NOTICE '  - Accountancy (ACT)';
+    RAISE NOTICE '  - Education (ED)';
+    RAISE NOTICE '==========================================';
     RAISE NOTICE '';
     RAISE NOTICE 'Next steps:';
     RAISE NOTICE '1. Create a storage bucket called "research-files" in Supabase Storage';
     RAISE NOTICE '2. Set the bucket to public or configure appropriate permissions';
+    RAISE NOTICE '3. Your system is ready to use!';
     RAISE NOTICE '==========================================';
 END $$;

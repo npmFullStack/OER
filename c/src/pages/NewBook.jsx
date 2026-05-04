@@ -9,9 +9,12 @@ import {
   Save,
   X,
   MapPin,
+  Info,
+  Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Select from "@/components/Select";
+import instruction from "@/assets/images/instruction.png";
 
 const NewBook = () => {
   const navigate = useNavigate();
@@ -116,31 +119,31 @@ const NewBook = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
-            </button>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Add New Book Record
-            </h1>
-          </div>
+    <div className="bg-white rounded-xl p-6">
+      {/* Header with back button and title */}
+      <div className="mb-6 flex items-center gap-4">
+        <button
+          onClick={() => navigate("/books")}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          <ArrowLeft className="w-6 h-6 text-gray-600" />
+        </button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Add New Book</h1>
+          <p className="mt-2 text-gray-600">
+            Create a new book record for the library catalog
+          </p>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Form */}
+        <div className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Book Details Section */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-6">
                 Book Information
               </h2>
 
@@ -254,6 +257,87 @@ const NewBook = () => {
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Right Column - Instructions */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg border border-gray-200 p-6 sticky top-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Info className="w-5 h-5 text-blue-600" />
+              Instructions
+            </h3>
+
+            <div className="mb-4 rounded-lg overflow-hidden bg-gray-50 p-4">
+              <img
+                src={instruction}
+                alt="Book creation instructions"
+                className="w-full h-auto rounded-lg"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src =
+                    "https://via.placeholder.com/300x200?text=Instruction+Guide";
+                }}
+              />
+            </div>
+
+            <div className="space-y-4">
+              {[
+                {
+                  n: 1,
+                  title: "Fill Book Details",
+                  desc: "Enter title, author, and call number",
+                },
+                {
+                  n: 2,
+                  title: "Select Program",
+                  desc: "Choose the program this book belongs to",
+                },
+                {
+                  n: 3,
+                  title: "Assign Shelf Location",
+                  desc: "Select where the book is physically located",
+                },
+                {
+                  n: 4,
+                  title: "Save Record",
+                  desc: "Click save to add the book to catalog",
+                },
+              ].map(({ n, title, desc }) => (
+                <div key={n} className="flex gap-3">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-semibold">
+                    {n}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{title}</p>
+                    <p className="text-xs text-gray-500 mt-1">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                Pro Tips
+              </h4>
+              <ul className="space-y-2 text-xs text-blue-800">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600">•</span>
+                  <span>Use proper call number format for easy searching</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600">•</span>
+                  <span>Include all authors for multi-author books</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-600">•</span>
+                  <span>
+                    Double-check shelf location for accurate inventory
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>

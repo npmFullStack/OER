@@ -1,5 +1,5 @@
 // src/pages/StudentResearch.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -16,11 +16,13 @@ import {
   Layers,
   Loader,
   FileUp,
+  Upload,
 } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import WarningModal from "@/components/modals/WarningModal";
 import Select from "@/components/Select";
 import NewStudentResearchCategory from "@/components/modals/NewStudentResearchCategory";
+import UploadStudentResearchFile from "@/components/modals/UploadStudentResearchFile";
 import studentResearchService from "@/services/student-research.service";
 import toast from "react-hot-toast";
 
@@ -47,14 +49,33 @@ const StudentResearch = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isAddDropdownOpen, setIsAddDropdownOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isUploadFileModalOpen, setIsUploadFileModalOpen] = useState(false);
+  const [selectedResearchForUpload, setSelectedResearchForUpload] =
+    useState(null);
   const [categories, setCategories] = useState([]);
   const [years, setYears] = useState([]);
   const [downloading, setDownloading] = useState(null);
+
+  const actionMenuRef = useRef(null);
 
   // Load data from backend
   useEffect(() => {
     loadResearch();
     loadCategories();
+  }, []);
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        actionMenuRef.current &&
+        !actionMenuRef.current.contains(event.target)
+      ) {
+        setOpenActionMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const loadResearch = async () => {
@@ -190,6 +211,16 @@ const StudentResearch = () => {
       toast.success("Download started");
     }
     setDownloading(null);
+  };
+
+  const handleUploadFile = (item) => {
+    setOpenActionMenu(null);
+    setSelectedResearchForUpload(item);
+    setIsUploadFileModalOpen(true);
+  };
+
+  const handleUploadSuccess = () => {
+    loadResearch();
   };
 
   const handleUploadResearch = () => {
@@ -447,7 +478,7 @@ const StudentResearch = () => {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-y border-gray-200">
                 <tr>
@@ -517,9 +548,15 @@ const StudentResearch = () => {
                             </span>
                           </button>
                         ) : (
-                          <span className="text-gray-400 text-xs">
-                            No file attached
-                          </span>
+                          <button
+                            onClick={() => handleUploadFile(item)}
+                            className="inline-flex items-center gap-1.5 text-orange-600 hover:text-orange-800 text-xs group"
+                          >
+                            <Upload className="w-3.5 h-3.5 flex-shrink-0" />
+                            <span className="truncate max-w-[150px]">
+                              Upload file
+                            </span>
+                          </button>
                         )}
                         {/* Stats */}
                         <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -535,53 +572,62 @@ const StudentResearch = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-center relative">
-                      <button
-                        onClick={() =>
-                          setOpenActionMenu(
-                            openActionMenu === item.id ? null : item.id,
-                          )
-                        }
-                        className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                      <div
+                        className="relative"
+                        ref={openActionMenu === item.id ? actionMenuRef : null}
                       >
-                        <MoreVertical className="w-5 h-5 text-gray-500" />
-                      </button>
-                      {openActionMenu === item.id && (
-                        <div className="absolute right-4 mt-1 w-36 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                          <button
-                            onClick={() => handleView(item)}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Eye className="w-4 h-4" />
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleDownload(item)}
-                            disabled={downloading === item.id}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            {downloading === item.id ? (
-                              <Loader className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Download className="w-4 h-4" />
+                        <button
+                          onClick={() =>
+                            setOpenActionMenu(
+                              openActionMenu === item.id ? null : item.id,
+                            )
+                          }
+                          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <MoreVertical className="w-5 h-5 text-gray-500" />
+                        </button>
+                        {openActionMenu === item.id && (
+                          <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                            {item.file_url && (
+                              <>
+                                <button
+                                  onClick={() => handleView(item)}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => handleDownload(item)}
+                                  disabled={downloading === item.id}
+                                  className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  {downloading === item.id ? (
+                                    <Loader className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Download className="w-4 h-4" />
+                                  )}
+                                  Download
+                                </button>
+                              </>
                             )}
-                            Download
-                          </button>
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <Edit className="w-4 h-4" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(item)}
-                            className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
+                            <button
+                              onClick={() => handleEdit(item)}
+                              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(item)}
+                              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -619,6 +665,17 @@ const StudentResearch = () => {
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
         onSave={handleSaveCategories}
+      />
+
+      {/* Upload File Modal */}
+      <UploadStudentResearchFile
+        isOpen={isUploadFileModalOpen}
+        onClose={() => {
+          setIsUploadFileModalOpen(false);
+          setSelectedResearchForUpload(null);
+        }}
+        researchId={selectedResearchForUpload?.id}
+        onSuccess={handleUploadSuccess}
       />
 
       {/* Warning Modal for Delete */}
