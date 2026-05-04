@@ -698,7 +698,7 @@ const EbooksByProgram = () => {
                       key={book.id}
                       book={book}
                       viewMode="list"
-                      onClick={() => navigate(`/ebook/${book.id}`)}
+                      onClick={() => navigate(`/my-ebooks/${book.id}`)}
                     />
                   ))}
                 </div>

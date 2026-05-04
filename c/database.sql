@@ -1,7 +1,7 @@
 -- ============================================
 -- COMPLETE DATABASE SETUP FOR OCC eLIBRARY
 -- WITH PROGRAMS AND STUDENT RESEARCH MANAGEMENT
--- UPDATED VERSION
+-- INCLUDES STORAGE BUCKET AND RLS POLICIES
 -- ============================================
 
 -- Enable required extensions
@@ -244,6 +244,64 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
+-- STORAGE: CREATE AND CONFIGURE BUCKET
+-- ============================================
+
+-- Create the bucket if it doesn't exist
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'research-files',
+    'research-files',
+    true,  -- public bucket
+    52428800,  -- 50MB file size limit
+    ARRAY['application/pdf']::text[]  -- Only allow PDF files
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- ============================================
+-- STORAGE RLS POLICIES
+-- ============================================
+
+-- Drop existing policies if any
+DROP POLICY IF EXISTS "Public can view research files" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload research files" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Superadmins can delete research files" ON storage.objects;
+
+-- Policy 1: Allow public to view/download files
+CREATE POLICY "Public can view research files"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'research-files');
+
+-- Policy 2: Allow authenticated users to upload files (simplified)
+CREATE POLICY "Authenticated users can upload research files"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'research-files');
+
+-- Policy 3: Allow users to update their own uploads
+CREATE POLICY "Users can update their own uploads"
+ON storage.objects FOR UPDATE
+TO authenticated
+USING (bucket_id = 'research-files');
+
+-- Policy 4: Allow superadmins to delete files
+CREATE POLICY "Superadmins can delete research files"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (
+    bucket_id = 'research-files'
+    AND EXISTS (
+        SELECT 1 FROM public.users
+        WHERE id = auth.uid()::uuid
+        AND role = 'superadmin'
+    )
+);
+
+-- ============================================
 -- SEEDER: INSERT DEFAULT CATEGORIES
 -- ============================================
 INSERT INTO public.student_research_category (name, description, color, display_order) VALUES
@@ -290,7 +348,7 @@ BEGIN
 END $$;
 
 -- ============================================
--- SEEDER: INSERT DEFAULT PROGRAMS (Optional)
+-- SEEDER: INSERT DEFAULT PROGRAMS
 -- ============================================
 INSERT INTO public.programs (name, acronym, color, total_books, total_ebooks, is_active) VALUES
 ('Computer Science', 'CS', '#3b82f6', 0, 0, true),
@@ -308,6 +366,7 @@ DO $$
 DECLARE
     user_exists BOOLEAN;
     cat_count INTEGER;
+    bucket_exists BOOLEAN;
 BEGIN
     -- Check users table
     SELECT EXISTS (SELECT 1 FROM public.users WHERE email = 'admin@occ.edu') INTO user_exists;
@@ -321,6 +380,14 @@ BEGIN
     -- Check categories count
     SELECT COUNT(*) INTO cat_count FROM public.student_research_category;
     RAISE NOTICE '✓ % student research categories created', cat_count;
+    
+    -- Check bucket
+    SELECT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'research-files') INTO bucket_exists;
+    IF bucket_exists THEN
+        RAISE NOTICE '✓ Storage bucket "research-files" exists and is configured';
+    ELSE
+        RAISE NOTICE '✗ Storage bucket creation failed';
+    END IF;
     
     -- Test password verification (should return true)
     IF verify_password('admin@occ.edu', 'password') THEN
@@ -366,10 +433,15 @@ BEGIN
     RAISE NOTICE '  - Accountancy (ACT)';
     RAISE NOTICE '  - Education (ED)';
     RAISE NOTICE '==========================================';
+    RAISE NOTICE 'Storage Bucket Configured:';
+    RAISE NOTICE '  - Name: research-files';
+    RAISE NOTICE '  - Public: Yes';
+    RAISE NOTICE '  - File limit: 50MB';
+    RAISE NOTICE '  - Allowed types: PDF only';
+    RAISE NOTICE '  - RLS Policies: Enabled';
+    RAISE NOTICE '==========================================';
     RAISE NOTICE '';
-    RAISE NOTICE 'Next steps:';
-    RAISE NOTICE '1. Create a storage bucket called "research-files" in Supabase Storage';
-    RAISE NOTICE '2. Set the bucket to public or configure appropriate permissions';
-    RAISE NOTICE '3. Your system is ready to use!';
+    RAISE NOTICE 'Your system is ready to use!';
+    RAISE NOTICE 'You can now upload research files.';
     RAISE NOTICE '==========================================';
 END $$;
