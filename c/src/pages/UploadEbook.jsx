@@ -11,47 +11,30 @@ import {
   BookOpen,
   Info,
   Eye,
+  Calendar,
+  Layers,
 } from "lucide-react";
-import instruction from "@/assets/images/instruction.png";
-import * as pdfjsLib from "pdfjs-dist";
-import CustomSelect from "../components/Select";
 import toast from "react-hot-toast";
 
-const PROGRAMS = [
-  { value: 1, label: "BSIT - Bachelor of Science in Information Technology" },
-  {
-    value: 2,
-    label:
-      "BSBA-FM - Bachelor of Science in Business Administration - Financial Management",
-  },
-  {
-    value: 3,
-    label:
-      "BSBA-MM - Bachelor of Science in Business Administration - Marketing Management",
-  },
-  { value: 4, label: "BSED - Bachelor of Secondary Education" },
-  { value: 5, label: "BEED - Bachelor in Elementary Education" },
-  { value: 6, label: "GEN ED - General Education" },
+import ebookService from "@/services/ebook.service";
+import programService from "@/services/program.service";
+
+const YEAR_LEVELS = [
+  { value: "1", label: "1st Year" },
+  { value: "2", label: "2nd Year" },
+  { value: "3", label: "3rd Year" },
+  { value: "4", label: "4th Year" },
 ];
 
-// Program color mapping for preview
-const PROGRAM_COLORS = {
-  1: "#ef4444", // BSIT - red
-  2: "#eab308", // BSBA-FM - yellow
-  3: "#eab308", // BSBA-MM - yellow
-  4: "#3b82f6", // BSED - blue
-  5: "#3b82f6", // BEED - blue
-  6: "#10b981", // GEN ED - green
-};
-
-const PROGRAM_ACRONYMS = {
-  1: "BSIT",
-  2: "BSBA-FM",
-  3: "BSBA-MM",
-  4: "BSED",
-  5: "BEED",
-  6: "GEN ED",
-};
+// Lazy-load pdfjs with local worker via Vite's ?url import — no CDN, no 404s
+async function getPdfjsLib() {
+  const [pdfjsLib, workerUrl] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+  ]);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.default;
+  return pdfjsLib;
+}
 
 const UploadEbook = () => {
   const navigate = useNavigate();
@@ -59,77 +42,88 @@ const UploadEbook = () => {
   const [formData, setFormData] = useState({
     title: "",
     programId: "",
+    yearLevel: "",
   });
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState("");
   const [loading, setLoading] = useState(false);
   const [coverPreview, setCoverPreview] = useState(null);
   const [extractingCover, setExtractingCover] = useState(false);
+  const [programs, setPrograms] = useState([]);
+  const [loadingPrograms, setLoadingPrograms] = useState(true);
 
   useEffect(() => {
-    const pdfjsVersion = pdfjsLib.version;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
+    fetchPrograms();
   }, []);
+
+  const fetchPrograms = async () => {
+    setLoadingPrograms(true);
+    try {
+      const result = await programService.getAllPrograms(false);
+      if (result.error) {
+        toast.error("Failed to load programs");
+        console.error(result.error);
+      } else if (result.programs) {
+        setPrograms(result.programs);
+      }
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+      toast.error("Failed to load programs");
+    } finally {
+      setLoadingPrograms(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleProgramChange = (value) => {
-    setFormData({ ...formData, programId: value });
+  const handleProgramChange = (e) => {
+    setFormData({ ...formData, programId: e.target.value, yearLevel: "" });
   };
 
-  const renderPdfPage = async (arrayBuffer) => {
-    const loadingTask = pdfjsLib.getDocument({
-      data: arrayBuffer,
-      useSystemFonts: true,
-      disableRange: true,
-      disableStream: true,
-    });
-    const pdf = await loadingTask.promise;
-    const page = await pdf.getPage(1);
-    const scale = 1.5;
-    const viewport = page.getViewport({ scale });
-
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d", { alpha: false });
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-
-    context.fillStyle = "#FFFFFF";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    await page.render({ canvasContext: context, viewport, background: "white" })
-      .promise;
-    return canvas.toDataURL("image/jpeg", 0.85);
+  const handleYearLevelChange = (e) => {
+    setFormData({ ...formData, yearLevel: e.target.value });
   };
 
-  const extractPdfCover = async (file) => {
+  const extractPdfCover = async (pdfFile) => {
     setExtractingCover(true);
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfjsVersion = pdfjsLib.version;
+    let canvas = null;
+    try {
+      const pdfjsLib = await getPdfjsLib();
+      const arrayBuffer = await pdfFile.arrayBuffer();
 
-    const workerUrls = [
-      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`,
-      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`,
-      `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/legacy/build/pdf.worker.min.js`,
-      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`,
-    ];
+      const loadingTask = pdfjsLib.getDocument({
+        data: arrayBuffer,
+        useSystemFonts: true,
+        disableRange: true,
+        disableStream: true,
+      });
 
-    for (const workerUrl of workerUrls) {
-      try {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-        const dataUrl = await renderPdfPage(arrayBuffer.slice(0));
-        setCoverPreview(dataUrl);
-        setExtractingCover(false);
-        return;
-      } catch (err) {
-        console.warn(`Worker failed with ${workerUrl}:`, err.message);
-      }
+      const pdf = await loadingTask.promise;
+      const page = await pdf.getPage(1);
+
+      const scale = 1.2;
+      const viewport = page.getViewport({ scale });
+
+      canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      context.fillStyle = "#FFFFFF";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      setCoverPreview(canvas.toDataURL("image/jpeg", 0.7));
+    } catch (error) {
+      console.error("Cover extraction error:", error);
+      toast.error("Could not extract cover from PDF. You can still upload.");
+    } finally {
+      if (canvas) canvas.remove();
+      setExtractingCover(false);
     }
-
-    setCoverPreview(null);
-    setExtractingCover(false);
   };
 
   const handleFileChange = async (e) => {
@@ -171,10 +165,9 @@ const UploadEbook = () => {
     return `${nameWithoutExt.substring(0, maxLength - 3 - extension.length)}...${extension}`;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate required fields
     if (!formData.title.trim()) {
       toast.error("Please enter a title");
       return;
@@ -183,27 +176,36 @@ const UploadEbook = () => {
       toast.error("Please select a program");
       return;
     }
+    if (!formData.yearLevel) {
+      toast.error("Please select a year level");
+      return;
+    }
     if (!file) {
       toast.error("Please upload a PDF file");
       return;
     }
 
     setLoading(true);
-    // Simulate upload
-    setTimeout(() => {
+    try {
+      const result = await ebookService.createEbook(formData, file);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("eBook uploaded successfully!");
+        navigate("/my-ebooks");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload eBook. Please try again.");
+    } finally {
       setLoading(false);
-      toast.success("eBook uploaded successfully!");
-      navigate("/my-ebooks");
-    }, 1000);
+    }
   };
 
-  const selectedProgramId = formData.programId;
-  const selectedProgramColor = PROGRAM_COLORS[selectedProgramId];
-  const selectedProgramAcronym = PROGRAM_ACRONYMS[selectedProgramId];
+  const selectedProgram = programs.find((p) => p.id === formData.programId);
 
   return (
     <div className="bg-white rounded-xl p-6">
-      {/* Header with back button and title - Matching other pages */}
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={() => navigate("/my-ebooks")}
@@ -219,9 +221,7 @@ const UploadEbook = () => {
         </div>
       </div>
 
-      {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Form */}
         <div className="lg:col-span-2 space-y-6">
           <form onSubmit={handleSubmit}>
             {/* File Upload Area */}
@@ -324,7 +324,7 @@ const UploadEbook = () => {
             </div>
 
             {/* Book Details Form */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-6">
                 Book Details
               </h2>
@@ -349,42 +349,88 @@ const UploadEbook = () => {
                   </div>
                 </div>
 
-                {/* Program Select using CustomSelect */}
+                {/* Program Select */}
                 <div>
-                  <CustomSelect
-                    label="Program"
-                    options={PROGRAMS}
-                    value={formData.programId}
-                    onChange={handleProgramChange}
-                    placeholder="Select a program..."
-                    required={true}
-                    isClearable={true}
-                    isSearchable={true}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Program <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      value={formData.programId}
+                      onChange={handleProgramChange}
+                      required
+                      disabled={loadingPrograms}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {loadingPrograms
+                          ? "Loading programs..."
+                          : "Select a program"}
+                      </option>
+                      {programs.map((program) => (
+                        <option key={program.id} value={program.id}>
+                          {program.acronym} - {program.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Year Level Select */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Year Level <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select
+                      name="yearLevel"
+                      value={formData.yearLevel}
+                      onChange={handleYearLevelChange}
+                      required
+                      disabled={!formData.programId}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option value="">Select year level</option>
+                      {YEAR_LEVELS.map((year) => (
+                        <option key={year.value} value={year.value}>
+                          {year.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {!formData.programId && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Please select a program first
+                    </p>
+                  )}
                 </div>
 
                 {/* Program Preview */}
-                {selectedProgramId && (
+                {selectedProgram && (
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      Selected Program Preview:
+                      Selected Program:
                     </p>
                     <div className="flex items-center gap-3">
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-semibold text-xs"
-                        style={{ backgroundColor: selectedProgramColor }}
+                        style={{
+                          backgroundColor: selectedProgram.color || "#3b82f6",
+                        }}
                       >
-                        {selectedProgramAcronym?.charAt(0)}
+                        {selectedProgram.acronym?.charAt(0)}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">
-                          {
-                            PROGRAMS.find((p) => p.value === selectedProgramId)
-                              ?.label
-                          }
+                          {selectedProgram.name}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Acronym: {selectedProgramAcronym}
+                          Acronym: {selectedProgram.acronym} • Year Level:{" "}
+                          {YEAR_LEVELS.find(
+                            (y) => y.value === formData.yearLevel,
+                          )?.label || "Not selected"}
                         </p>
                       </div>
                     </div>
@@ -397,8 +443,7 @@ const UploadEbook = () => {
             <div className="flex gap-4">
               <button
                 type="submit"
-                onClick={handleSubmit}
-                disabled={loading || extractingCover}
+                disabled={loading || extractingCover || loadingPrograms}
                 className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
               >
                 {loading ? "Uploading..." : "Upload eBook"}
@@ -422,19 +467,6 @@ const UploadEbook = () => {
               Upload Instructions
             </h3>
 
-            <div className="mb-4 rounded-lg overflow-hidden bg-gray-50 p-4">
-              <img
-                src={instruction}
-                alt="Upload instructions"
-                className="w-full h-auto rounded-lg"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src =
-                    "https://via.placeholder.com/300x200?text=Instruction+Guide";
-                }}
-              />
-            </div>
-
             <div className="space-y-4">
               {[
                 {
@@ -450,7 +482,7 @@ const UploadEbook = () => {
                 {
                   n: 3,
                   title: "Fill Book Details",
-                  desc: "Add title and program information",
+                  desc: "Add title, program, and year level information",
                 },
                 {
                   n: 4,
